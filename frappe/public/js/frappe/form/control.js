@@ -434,30 +434,11 @@ frappe.ui.form.ControlData = frappe.ui.form.ControlInput.extend({
 				callback("");
 				return;
 			}
-
-			var email_list = frappe.utils.split_emails(v);
-			if (!email_list) {
-				// invalid email
-				callback("");
-
-			} else {
-				var invalid_email = false;
-				email_list.forEach(function(email) {
-					if (!validate_email(email)) {
-						msgprint(__("Invalid Email: {0}", [email]));
-						invalid_email = true;
-					}
-				});
-
-				if (invalid_email) {
-					// at least 1 invalid email
+			if(!validate_email(v)) {
+				msgprint(__("Invalid Email: {0}", [v]));
 					callback("");
-				} else {
-					// all good
-					callback(v);
-				}
-			}
-
+			} else
+				callback(v);
 		} else {
 			callback(v);
 		}

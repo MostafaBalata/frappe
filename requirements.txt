@@ -29,6 +29,5 @@ click
 num2words
 watchdog==0.8.0
 bleach
-bleach-whitelist
 Pillow
 beautifulsoup4

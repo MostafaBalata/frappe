@@ -344,9 +344,13 @@ class User(Document):
 		return frappe.db.get_value("User", {"username": username or self.username, "name": ("!=", self.name)})
 
 @frappe.whitelist()
-def get_timezones():
+def get_languages():
+	from frappe.translate import get_lang_dict
 	import pytz
+	languages = get_lang_dict().keys()
+	languages.sort()
 	return {
+		"languages": [""] + languages,
 		"timezones": pytz.all_timezones
 	}
 
@@ -437,6 +441,9 @@ def reset_password(user):
 
 def user_query(doctype, txt, searchfield, start, page_len, filters):
 	from frappe.desk.reportview import get_match_cond
+	print("=====================================")
+	print("1")
+	print("=====================================")
 	txt = "%{}%".format(txt)
 	return frappe.db.sql("""select name, concat_ws(' ', first_name, middle_name, last_name)
 		from `tabUser`
@@ -453,8 +460,17 @@ def user_query(doctype, txt, searchfield, start, page_len, filters):
 				then 0 else 1 end,
 			name asc
 		limit %s, %s""".format(standard_users=", ".join(["%s"]*len(STANDARD_USERS)),
-			key=searchfield, mcond=get_match_cond(doctype)),
+			key=searchfield, mcond=get_match_cond(doctype) ),
 			tuple(list(STANDARD_USERS) + [txt, txt, txt, txt, start, page_len]))
+
+def user_query_lead(doctype, txt, searchfield, start, page_len, filters):
+	from frappe.desk.reportview import get_match_cond
+	print("=====================213123123123================")
+	print(filters['cat'])
+	print("=====================================")
+	txt = "%{}%".format(txt)
+	return frappe.db.sql("""select a.name ,concat_ws(' ', a.first_name, a.middle_name, a.last_name)
+	FROM tabUser a, tabUserRole b WHERE a.name = b.parent and b.role='{role}';""".format(role=filters['cat']))
 
 def get_total_users(exclude_users=None):
 	"""Returns total no. of system users"""

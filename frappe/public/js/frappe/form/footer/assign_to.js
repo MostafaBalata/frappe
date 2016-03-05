@@ -94,6 +94,8 @@ frappe.ui.form.AssignTo = Class.extend({
 				method: 'frappe.desk.form.assign_to.add',
 				doctype: me.frm.doctype,
 				docname: me.frm.docname,
+				cat: this.frm.doc.category,
+
 				callback: function(r) {
 					me.render(r.message);
 					me.frm.reload_doc();
@@ -154,13 +156,20 @@ frappe.ui.form.AssignTo = Class.extend({
 
 
 frappe.ui.to_do_dialog = function(opts){
+
+	console.log(opts.cat);
+	var role_selected ="";
+	if (opts.cat=="Question")role_selected = "Support Team";
+	else if (opts.cat=="Sales")role_selected = "Sales User";
+	else if (opts.cat=="Support")role_selected = "Support Team";
+	console.log(opts.doctype);
 	var dialog = new frappe.ui.Dialog({
 		title: __('Add to To Do'),
 		fields: [
 			{fieldtype:'Check', fieldname:'myself', label:__("Assign to me"), "default":0},
 			{fieldtype: 'Section Break'},
 			{fieldtype: 'Link', fieldname:'assign_to', options:'User',
-				label:__("Assign To"), reqd:true},
+				label:__("Assign To"),filters:{"cat":role_selected}, reqd:true},
 			{fieldtype:'Small Text', fieldname:'description', label:__("Comment"), reqd:true},
 			{fieldtype: 'Section Break'},
 			{fieldtype: 'Column Break'},
@@ -175,7 +184,12 @@ frappe.ui.to_do_dialog = function(opts){
 		primary_action_label: __("Add")
 	});
 
+if (opts.doctype !="Lead")
 	dialog.fields_dict.assign_to.get_query = "frappe.core.doctype.user.user.user_query";
+else {
+	dialog.fields_dict.assign_to.get_query = "frappe.core.doctype.user.user.user_query_lead";
+
+}
 
 	return dialog
 }

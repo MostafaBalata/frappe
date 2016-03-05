@@ -29,7 +29,7 @@ def get(doctype, txt=None, limit_start=0, **kwargs):
 
 	filters = prepare_filters(kwargs)
 	meta = frappe.get_meta(doctype)
-	list_context = get_list_context(frappe._dict(), doctype)
+	list_context = get_list_context({}, doctype)
 
 	if list_context.filters:
 		filters.update(list_context.filters)
@@ -123,4 +123,3 @@ def get_list(doctype, txt, filters, limit_start, limit_page_length=20, ignore_pe
 		filters=filters, or_filters=or_filters, limit_start=limit_start,
 		limit_page_length = limit_page_length, ignore_permissions=ignore_permissions,
 		order_by=order_by)
-

@@ -9,6 +9,5 @@
 	"repo_url": "https://github.com/frappe/erpnext_shopify.git",
 	"app_title": "ERPNext Shopify",
 	"app_version": "1.0.0",
-	"app_category": "Integrations",
-  "featured": 1
+	"app_category": "Integrations"
 }

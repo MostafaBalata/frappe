@@ -4,8 +4,7 @@
 from __future__ import unicode_literals
 import frappe, sys
 from frappe import _
-from frappe.utils import (cint, flt, now, cstr, strip_html, getdate, get_datetime, to_timedelta,
-	sanitize_html, sanitize_email)
+from frappe.utils import cint, flt, now, cstr, strip_html, getdate, get_datetime, to_timedelta
 from frappe.model import default_fields
 from frappe.model.naming import set_new_name
 from frappe.modules import load_doctype_module
@@ -178,7 +177,7 @@ class BaseDocument(object):
 		d = frappe._dict()
 		for fieldname in self.meta.get_valid_columns():
 			d[fieldname] = self.get(fieldname)
-
+			
 			# if no need for sanitization and value is None, continue
 			if not sanitize and d[fieldname] is None:
 				continue
@@ -189,7 +188,7 @@ class BaseDocument(object):
 					d[fieldname] = cint(d[fieldname])
 
 				elif df.fieldtype in ("Currency", "Float", "Percent") and not isinstance(d[fieldname], float):
-
+					
 					d[fieldname] = flt(d[fieldname])
 
 				elif df.fieldtype in ("Datetime", "Date") and d[fieldname]=="":
@@ -506,47 +505,6 @@ class BaseDocument(object):
 					frappe.throw(_("Not allowed to change {0} after submission").format(df.label),
 						frappe.UpdateAfterSubmitError)
 
-	def _sanitize_content(self):
-		"""Sanitize HTML and Email in field values. Used to prevent XSS.
-
-			- Ignore if 'Ignore XSS Filter' is checked or fieldtype is 'Code'
-		"""
-		if frappe.flags.in_install:
-			return
-
-		for fieldname, value in self.get_valid_dict().items():
-			if not value or not isinstance(value, basestring):
-				continue
-
-			elif ("<" not in value and ">" not in value):
-				# doesn't look like html so no need
-				continue
-
-			elif "<!-- markdown -->" in value and not ("<script" in value or "javascript:" in value):
-				# should be handled separately via the markdown converter function
-				continue
-
-			df = self.meta.get_field(fieldname)
-			sanitized_value = value
-
-			if df and df.get("fieldtype") in ("Data", "Code", "Small Text") and df.get("options")=="Email":
-				sanitized_value = sanitize_email(value)
-
-			elif df and (df.get("ignore_xss_filter")
-						or (df.get("fieldtype")=="Code" and df.get("options")!="Email")
-						or df.get("fieldtype") in ("Attach", "Attach Image")
-
-						# cancelled and submit but not update after submit should be ignored
-						or self.docstatus==2
-						or (self.docstatus==1 and not df.get("allow_on_submit"))):
-				continue
-
-
-			else:
-				sanitized_value = sanitize_html(value)
-
-			self.set(fieldname, sanitized_value)
-
 	def precision(self, fieldname, parentfield=None):
 		"""Returns float precision for a particular field (or get global default).
 
@@ -577,7 +535,7 @@ class BaseDocument(object):
 		return self._precision[cache_key][fieldname]
 
 
-	def get_formatted(self, fieldname, doc=None, currency=None, absolute_value=False, translated=False):
+	def get_formatted(self, fieldname, doc=None, currency=None, absolute_value=False):
 		from frappe.utils.formatters import format_value
 
 		df = self.meta.get_field(fieldname)
@@ -586,10 +544,6 @@ class BaseDocument(object):
 			df = get_default_df(fieldname)
 
 		val = self.get(fieldname)
-
-		if translated:
-			val = _(val)
-
 		if absolute_value and isinstance(val, (int, float)):
 			val = abs(self.get(fieldname))
 

@@ -127,8 +127,9 @@ def get_jloader():
 
 def set_filters(jenv):
 	import frappe
-	from frappe.utils import global_date_format, cint, cstr, flt, markdown
+	from frappe.utils import global_date_format, cint, cstr, flt
 	from frappe.website.utils import get_shade, abs_url
+	from markdown2 import markdown
 
 	jenv.filters["global_date_format"] = global_date_format
 	jenv.filters["markdown"] = markdown
