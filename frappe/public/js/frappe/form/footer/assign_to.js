@@ -159,7 +159,7 @@ frappe.ui.to_do_dialog = function(opts){
 
 	console.log(opts.cat);
 	var role_selected ="";
-	if (opts.cat=="Question")role_selected = "Support Team";
+	if (opts.cat=="Question")role_selected = "Tec Support Team";
 	else if (opts.cat=="Sales")role_selected = "Sales User";
 	else if (opts.cat=="Support")role_selected = "Support Team";
 	console.log(opts.doctype);
