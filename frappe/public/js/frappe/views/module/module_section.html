@@ -10,8 +10,10 @@
 			<p class="text-muted small module-item-description hidden-xs">{%= item.description %}</p>
 		</div>
 		<div class="col-xs-4 text-muted text-right small" style="padding-top: 5px;">
+
+
 			{% if (item.last_modified) { %}
-			{%= comment_when(item.last_modified) %}
+            {%= comment_when(item.last_modified) %}
 			{% } %}
 		</div>
 		{% } else { %}

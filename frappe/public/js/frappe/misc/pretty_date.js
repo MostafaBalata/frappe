@@ -1,6 +1,6 @@
 function prettyDate(time, mini){
-
-	if(moment) {
+//	console.log(time,mini);
+	if(moment && false) { //diable moment
 		if(window.sys_defaults && sys_defaults.time_zone) {
 			var ret = moment.tz(time, sys_defaults.time_zone).fromNow(mini);
 		} else {
@@ -41,7 +41,7 @@ function prettyDate(time, mini){
 				diff < 120 && __("1 minute ago") ||
 				diff < 3600 && __("{0} minutes ago", [Math.floor( diff / 60 )]) ||
 				diff < 7200 && __("1 hour ago") ||
-				diff < 86400 && ("{0} hours ago", [Math.floor( diff / 3600 )])) ||
+				diff < 86400 && __("{0} hours ago", [Math.floor( diff / 3600 )])) ||
 			day_diff == 1 && __("Yesterday") ||
 			day_diff < 7 && __("{0} days ago", day_diff) ||
 			day_diff < 31 && __("{0} weeks ago", [Math.ceil( day_diff / 7 )]) ||

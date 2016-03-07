@@ -17,6 +17,9 @@
 	{% for include in include_css -%}
 	<link type="text/css" rel="stylesheet" href="{{ include }}">
 	{%- endfor -%}
+	{% for include in include_css_rlt -%}
+	<link type="text/css" rel="stylesheet" href="{{ include }}">
+	{%- endfor -%}
 </head>
 <body>
 	<div class="centered splash" style="width: 200px; height: 200px;">
