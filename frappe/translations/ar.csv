@@ -1281,7 +1281,7 @@ apps/frappe/frappe/public/js/frappe/form/workflow.js +41,Workflow will start aft
 apps/frappe/frappe/public/js/frappe/form/set_sharing.html +7,Can Share,يمكن مشاركة
 apps/frappe/frappe/email/smtp.py +33,Invalid recipient address,عنوان المستلم غير صالحة
 DocType: Workflow State,step-forward,خطوة إلى الأمام
-apps/frappe/frappe/core/doctype/user/user.js +41,Refreshing...,منعش ...
+apps/frappe/frappe/core/doctype/user/user.js +41,Refreshing...,تحديث ...
 DocType: Event,Starts on,يبدأ يوم
 DocType: System Settings,System Settings,إعدادات النظام
 apps/frappe/frappe/email/bulk.py +160,This email was sent to {0} and copied to {1},وقد أرسلت هذه الرسالة الى {0} ونسخها إلى {1}
@@ -2002,7 +2002,7 @@ apps/frappe/frappe/custom/doctype/customize_form/customize_form.js +158,"Change 
 						allowed among 'Currency and Float')","تغيير نوع الحقل. (في الوقت الراهن، لا يسمح نوع التغيير \
  بين عملة وتعويم ')"
 apps/frappe/frappe/website/doctype/web_form/web_form.py +27,You need to be in developer mode to edit a Standard Web Form,عليك أن تكون في وضع المطور لتعديل نموذج ويب قياسي
-apps/frappe/frappe/public/js/frappe/views/reports/query_report.js +48,"For comparative filters, start with",للمرشحات النسبية، وتبدأ مع
+apps/frappe/frappe/public/js/frappe/views/reports/query_report.js +48,"For comparative filters, start with",لتصفية المقارنات، ابدأ مع
 DocType: Website Theme,Link to Bootstrap CSS,تصل إلى التمهيد CSS
 DocType: Workflow State,camera,كاميرا
 DocType: Website Settings,Brand HTML,العلامة التجارية HTML

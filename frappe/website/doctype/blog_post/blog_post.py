@@ -78,6 +78,7 @@ class BlogPost(WebsiteGenerator):
 
 		category = frappe.db.get_value("Blog Category", context.doc.blog_category, ["title", "page_name"], as_dict=1)
 		context.parents = [{"title": category.title, "name": "blog/{0}".format(category.page_name)}]
+		context.blog_simi_posts = get_blog_posts()
 
 def get_list_context(context=None):
 	list_context = frappe._dict(
@@ -86,7 +87,8 @@ def get_list_context(context=None):
 		row_template = "templates/includes/blog/blog_row.html",
 		get_list = get_blog_list,
 		hide_filters = True,
-		children = get_children()
+		children = get_children(),
+		blog_cats = get_blog_cats(),
 	)
 
 	if frappe.local.form_dict.category:
@@ -137,7 +139,7 @@ def get_blog_list(doctype, txt=None, filters=None, limit_start=0, limit_page_len
 	query = """\
 		select
 			t1.title, t1.name, t1.blog_category, t1.parent_website_route, t1.published_on,
-				concat(t1.parent_website_route, "/", t1.page_name) as page_name,
+				concat(t1.parent_website_route, "/", t1.page_name) as page_name,t1.image,
 				t1.published_on as creation,
 				ifnull(t1.blog_intro, t1.content) as content,
 				t2.full_name, t2.avatar, t1.blogger,
@@ -175,3 +177,9 @@ def get_blog_list(doctype, txt=None, filters=None, limit_start=0, limit_page_len
 			post.avatar = "/" + post.avatar
 
 	return posts
+
+def get_blog_cats():
+	return  frappe.get_list("Blog Category", fields=["*"])
+
+def get_blog_posts():
+	return  frappe.get_list("Blog Post", fields=["name,parent_website_route,title,image,published_on"])
