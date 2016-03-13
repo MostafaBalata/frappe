@@ -441,10 +441,6 @@ def reset_password(user):
 
 def user_query(doctype, txt, searchfield, start, page_len, filters):
 	from frappe.desk.reportview import get_match_cond
-	print("=====================================")
-	print("1")
-	print("=====================================")
-	txt = "%{}%".format(txt)
 	return frappe.db.sql("""select name, concat_ws(' ', first_name, middle_name, last_name)
 		from `tabUser`
 		where enabled=1
@@ -465,12 +461,18 @@ def user_query(doctype, txt, searchfield, start, page_len, filters):
 
 def user_query_lead(doctype, txt, searchfield, start, page_len, filters):
 	from frappe.desk.reportview import get_match_cond
-	print("=====================213123123123================")
-	print(filters['cat'])
-	print("=====================================")
 	txt = "%{}%".format(txt)
 	return frappe.db.sql("""select a.name ,concat_ws(' ', a.first_name, a.middle_name, a.last_name)
-	FROM tabUser a, tabUserRole b WHERE a.name = b.parent and b.role='{role}';""".format(role=filters['cat']))
+	FROM tabUser a, tabUserRole b WHERE a.name = b.parent and b.role='{role}';""".format(role="Sales User"))
+
+def user_query_Issue(doctype, txt, searchfield, start, page_len, filters):
+	print ("===================================")
+	print (filters['cat'])
+	print ("===================================")
+	from frappe.desk.reportview import get_match_cond
+	txt = "%{}%".format(txt)
+	return frappe.db.sql("""select a.name ,concat_ws(' ', a.first_name, a.middle_name, a.last_name)
+	FROM tabUser a, tabUserRole b WHERE a.name = b.parent and b.role='{role}';""".format(role=(filters['cat'])))
 
 def get_total_users(exclude_users=None):
 	"""Returns total no. of system users"""
