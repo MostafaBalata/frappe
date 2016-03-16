@@ -86,7 +86,7 @@ apps/frappe/frappe/desk/page/applications/application_row.html +16,Install,تث�
 DocType: Custom Script,Client,عميل
 apps/frappe/frappe/public/js/legacy/form.js +426,This form has been modified after you have loaded it,تم تعديل هذا النموذج بعد أن كنت قد تحميلها
 DocType: Website Settings,Twitter Share via,Twitter المشاركة عبر
-apps/frappe/frappe/config/website.py +33,Embed image slideshows in website pages.,تضمين عرض الشرائح صورة في صفحات الموقع.
+apps/frappe/frappe/config/website.py +33,Embed image slideshows in website pages.,إدراج الصور في عرض الشرائح الخاص بالموقع.
 DocType: Workflow Action,Workflow Action Name,سير العمل اسم العمل
 apps/frappe/frappe/core/doctype/doctype/doctype.py +158,DocType can not be merged,لا يمكن دمج DOCTYPE
 DocType: Web Form Field,Fieldtype,Fieldtype
@@ -169,7 +169,7 @@ apps/frappe/frappe/print/page/print_format_builder/print_format_builder_layout.h
 DocType: About Us Settings,Team Members,أعضاء الفريق
 apps/frappe/frappe/public/js/frappe/upload.js +83,Please attach a file or set a URL,يرجى إرفاق ملف أو تعيين URL
 DocType: Async Task,System Manager,إدارة نظام
-DocType: DocField,Permissions,أذونات
+DocType: DocField,Permissions, الصلاحيات
 DocType: Dropbox Backup,Allow Dropbox Access,تسمح قطاف الدخول
 DocType: User,Get your globally recognized avatar from Gravatar.com,الحصول على الرمزية الخاص بك المعترف بها عالميا من Gravatar.com
 DocType: Workflow State,plus-sign,زائد توقيع
@@ -350,7 +350,7 @@ DocType: Website Settings,Footer Items,تذييل العناصر
 apps/frappe/frappe/public/js/frappe/ui/page.html +21,Menu,الخيارات
 DocType: DefaultValue,DefaultValue,القيمة الافتراضية
 DocType: Dropbox Backup,Daily,يوميا
-apps/frappe/frappe/config/setup.py +19,User Roles,أدوار المستخدم
+apps/frappe/frappe/config/setup.py +19,User Roles,صلاحيات المستخدمين
 DocType: Property Setter,Property Setter overrides a standard DocType or Field property,الملكية واضعة يتجاوز على DOCTYPE القياسية أو الممتلكات الميدان
 apps/frappe/frappe/core/doctype/user/user.py +380,Cannot Update: Incorrect / Expired Link.,لا يمكن تحديث : رابط غير الصحيحة / منتهية الصلاحية .
 DocType: DocField,Set Only Once,تعيين مرة واحدة فقط
@@ -457,7 +457,7 @@ apps/frappe/frappe/public/js/frappe/misc/pretty_date.js +46,{0} days ago,قبل 
 apps/frappe/frappe/public/js/frappe/misc/pretty_date.js +46,{0} hours ago,قبل {0} ساعات
 DocType: Contact Us Settings,Address Line 1,العنوان سطر 1
 apps/frappe/frappe/desk/page/activity/activity.js +203,Feb,فبراير
-DocType: DocPerm,Role,إدراة الصالحيات
+DocType: DocPerm,Role,إدراة الصلاحيات
 apps/frappe/frappe/utils/data.py +412,Cent,سنت
 apps/frappe/frappe/config/setup.py +176,"States for workflow (e.g. Draft, Approved, Cancelled).",الدول عن سير العمل (على سبيل المثال مشروع ، وافق ، ألغي ) .
 apps/frappe/frappe/public/js/frappe/form/link_selector.js +136,Set Quantity,ضبط الكمية
@@ -493,7 +493,7 @@ DocType: Event,Event,حدث
 apps/frappe/frappe/public/js/frappe/views/communication.js +436,"On {0}, {1} wrote:",على {0}، {1} كتب:
 apps/frappe/frappe/custom/doctype/customize_form/customize_form.js +80,Cannot delete standard field. You can hide it if you want,لا يمكن حذف الحقل القياسية. يمكنك إخفاء ذلك إذا كنت تريد
 DocType: Top Bar Item,For top bar,الشريط العلوي لل
-DocType: Contact Us Settings,Address,عنوان
+DocType: Contact Us Settings,Address,العنوان
 DocType: Print Settings,In points. Default is 9.,في نقطة. الافتراضي هو 9.
 apps/frappe/frappe/public/js/frappe/ui/editor.html +62,Reduce indent (Shift+Tab),تقليل المسافة البادئة (التحول + تبويب)
 DocType: Print Settings,"Print with Letterhead, unless unchecked in a particular Document",طباعة مع رأسية، إلا إذا لم يتم التحقق منه في مستند خاص
@@ -626,7 +626,7 @@ apps/frappe/frappe/desk/page/applications/applications.js +160,Install {0}?,تث
 apps/frappe/frappe/templates/pages/login.html +50,Forgot Password?,هل نسيت كلمة المرور؟
 DocType: System Settings,yyyy-mm-dd,yyyy-mm-dd
 apps/frappe/frappe/email/doctype/email_account/email_account.py +44,Login Id is required,مطلوب معرف تسجيل الدخول
-DocType: Website Slideshow,Website Slideshow,موقع عرض الشرائح
+DocType: Website Slideshow,Website Slideshow,عرض الشرائح الخاص بالموقع
 apps/frappe/frappe/public/js/frappe/form/grid_body.html +6,No Data,لا توجد بيانات
 DocType: Website Settings,"Link that is the website home page. Standard Links (index, login, products, blog, about, contact)",ربط هذا هو الصفحة الرئيسية ل موقع الويب. روابط القياسية ( مؤشر ، تسجيل الدخول ، والمنتجات، بلوق ، عن، الاتصال )
 apps/frappe/frappe/public/js/frappe/ui/editor.html +8,Bullet list,قائمة رصاصة
@@ -1040,7 +1040,7 @@ DocType: DocPerm,Cancel,إلغاء
 DocType: Web Page,Page content,محتوى الصفحة
 apps/frappe/frappe/core/doctype/file/file.py +119,File {0} does not exist,ملف {0} غير موجود
 apps/frappe/frappe/core/page/data_import_tool/exporter.py +91,Leave blank for new records,اتركة فارغا لسجل جديد
-apps/frappe/frappe/config/website.py +79,List of themes for Website.,قائمة من الموضوعات عن الموقع.
+apps/frappe/frappe/config/website.py +79,List of themes for Website.,قائمةالموضوعات في الموقع.
 apps/frappe/frappe/public/js/frappe/ui/toolbar/navbar.html +44,Logout,خروج
 apps/frappe/frappe/core/page/permission_manager/permission_manager_help.html +26,Permissions at higher levels are Field Level permissions. All Fields have a Permission Level set against them and the rules defined at that permissions apply to the field. This is useful in case you want to hide or make certain field read-only for certain Roles.,ضوابط في المستويات العليا هي أذونات المستوى الميداني. جميع الحقول لديها مجموعة مستوى الأذونات ضدهم والقواعد المحددة في تلك الأذونات تنطبق على هذا المجال. وهذا مفيد في حال كنت تريد إخفاء أو جعل مجال معين للقراءة فقط لبعض الأدوار.
 apps/frappe/frappe/core/page/permission_manager/permission_manager_help.html +38,"If these instructions where not helpful, please add in your suggestions on GitHub Issues.",إذا هذه التعليمات حيث لم تكن مفيدة ، يرجى إضافة في اقتراحاتكم بشأن قضايا جيثب .
@@ -1384,7 +1384,7 @@ apps/frappe/frappe/public/js/frappe/form/save.js +14,Amending,المعدل
 apps/frappe/frappe/public/js/frappe/form/link_selector.js +5,Dialog box to select a Link Value,مربع الحوار لتحديد قيمة لينك
 DocType: Contact Us Settings,Send enquiries to this email address,إرسال الاستفسارات إلى عنوان البريد الإلكتروني هذا
 DocType: Letter Head,Letter Head Name,رسالة رئيس الاسم
-apps/frappe/frappe/config/website.py +23,User editable form on Website.,العضو شكل قابل للتحرير على موقع الويب.
+apps/frappe/frappe/config/website.py +23,User editable form on Website.,السماح للمستخدم بتحرير النماذج الموجودة على الموقع.
 DocType: Workflow State,file,ملف
 apps/frappe/frappe/templates/pages/login.html +74,Back to Login,العودة إلى تسجيل الدخول
 apps/frappe/frappe/model/rename_doc.py +97,You need write permission to rename,كنت بحاجة إلى كتابة إذن لإعادة تسمية
@@ -1488,7 +1488,7 @@ DocType: Print Settings,Print Style Preview,معاينة قبل الطباعة �
 apps/frappe/frappe/core/doctype/file/test_file.py +81,Test_Folder,Test_Folder
 apps/frappe/frappe/website/doctype/web_form/web_form.py +156,You are not allowed to update this Web Form Document,لا يسمح لك بتحديث هذه الوثيقة نموذج ويب
 DocType: About Us Settings,About Us Settings,إعدادات صفحة من نحن
-DocType: Website Settings,Website Theme,موضوع موقع
+DocType: Website Settings,Website Theme,موضوعات الموقع
 DocType: DocField,In List View,في عرض القائمة
 DocType: Email Account,Use TLS,استخدام TLS
 apps/frappe/frappe/email/smtp.py +30,Invalid login or password,تسجيل الدخول أو كلمة المرور غير صالحة
@@ -1696,7 +1696,7 @@ DocType: Workflow,"All possible Workflow States and roles of the workflow. Docst
 DocType: Website Theme,Footer Text Color,تذييل لون الخط
 apps/frappe/frappe/core/page/permission_manager/permission_manager_help.html +24,"Permissions at level 0 are Document Level permissions, i.e. they are primary for access to the document.",أذونات على مستوى 0 هي أذونات مستوى الوثيقة، أي أنها الأساسي للوصول إلى هذه الوثيقة.
 DocType: Print Format,Print Format,طباعة شكل
-apps/frappe/frappe/config/website.py +28,User ID of a blog writer.,هوية المستخدم من بلوق كاتبا.
+apps/frappe/frappe/config/website.py +28,User ID of a blog writer.,اضافة الـ ID الخاص بكاتب المقال.
 apps/frappe/frappe/config/setup.py +32,Set Permissions on Document Types and Roles,حذف وإضافة الصلاحيات
 DocType: About Us Settings,"""Company History""","""نبذة عن الشركة"""
 apps/frappe/frappe/permissions.py +332,Permission already set,إذن بالفعل تعيين
@@ -1870,7 +1870,7 @@ DocType: Contact Us Settings,City,مدينة
 DocType: DocField,Perm Level,بيرم المستوى
 apps/frappe/frappe/desk/doctype/event/event.py +59,Events In Today's Calendar,الأحداث في التقويم اليوم
 apps/frappe/frappe/templates/base.html +137,Error: Not a valid id?,خطأ: لا بطاقة هوية صالحة؟
-DocType: Web Page,Web Page,صفحة على الإنترنت
+DocType: Web Page,Web Page, صفحة الويب
 DocType: Blog Category,Blogger,مدون
 apps/frappe/frappe/public/js/frappe/views/ganttview.js +45,Gantt Chart,مخطط جانت
 apps/frappe/frappe/public/js/frappe/form/control.js +573,Date must be in format: {0},يجب أن تكون الآن في شكل : {0}
@@ -1949,12 +1949,12 @@ DocType: Workflow State,star,نجم
 apps/frappe/frappe/desk/page/activity/activity.js +204,Nov,نوفمبر
 apps/frappe/frappe/public/js/frappe/ui/filters/filters.js +160,values separated by commas,قيم مفصولة بفواصل
 apps/frappe/frappe/core/doctype/doctype/doctype.py +287,Max width for type Currency is 100px in row {0},عرض ماكس لنوع العملة هو 100px في الصف {0}
-apps/frappe/frappe/config/website.py +13,Content web page.,محتوى الويب الصفحة.
+apps/frappe/frappe/config/website.py +13,Content web page.,محتوى صفحة الويب. 
 apps/frappe/frappe/core/page/permission_manager/permission_manager_help.html +9,Add a New Role,إضافة دور جديد
 apps/frappe/frappe/templates/includes/login/login.js +126,Oops! Something went wrong,عفوًا! ذهب شيئا خاطئا
 apps/frappe/frappe/desk/page/applications/applications.js +42,Category,فئة
 apps/frappe/frappe/config/core.py +37,Client side script extensions in Javascript,ملحقات النصي جانب العميل في جافا سكريبت
-DocType: Blog Settings,Blog Introduction,بلوق مقدمة
+DocType: Blog Settings,Blog Introduction,المقدمة
 apps/frappe/frappe/desk/moduleview.py +67,Standard Reports,تقارير قياسية
 DocType: User,Email Settings,إعدادات البريد الإلكتروني
 apps/frappe/frappe/workflow/doctype/workflow/workflow.py +57,{0} not a valid State,{0}   ليست حالة صالحة
