@@ -184,10 +184,19 @@ frappe.ui.to_do_dialog = function(opts){
 		primary_action_label: __("Add")
 	});
 
-if (opts.doctype !="Lead")
-	dialog.fields_dict.assign_to.get_query = "frappe.core.doctype.user.user.user_query";
-else {
+if (opts.doctype =="Lead")
+{
 	dialog.fields_dict.assign_to.get_query = "frappe.core.doctype.user.user.user_query_lead";
+
+}
+else
+if (opts.doctype =="Issue")
+{
+	dialog.fields_dict.assign_to.get_query = "frappe.core.doctype.user.user.user_query_Issue";
+
+}
+else {
+	dialog.fields_dict.assign_to.get_query = "frappe.core.doctype.user.user.user_query";
 
 }
 

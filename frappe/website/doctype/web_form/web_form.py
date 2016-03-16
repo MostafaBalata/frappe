@@ -176,12 +176,17 @@ def accept():
 					pass
 
 			doc.set(fieldname, value)
+# Send if thier email
+	if doc.get("email_id"):
+		sender = frappe.get_site_config(frappe.local.sites_path)['sender_email']
+		frappe.sendmail(recipients=doc.get("email_id"), sender=sender, subject=_('New Subscribe'),
+		message="Thanks for completing servy ,have a nice day.")
 
 	if args.name:
 		if has_web_form_permission(doc.doctype, doc.name, "write"):
 			doc.save(ignore_permissions=True)
 		else:
-			# only if permissions are present
+			# only if permissions are presentz
 			doc.save()
 
 	else:
