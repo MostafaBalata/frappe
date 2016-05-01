@@ -8,6 +8,7 @@ from frappe import _
 from frappe.utils.file_manager import save_file, remove_file_by_url
 from frappe.website.utils import get_comment_list
 from frappe.custom.doctype.customize_form.customize_form import docfield_properties
+import frappe.desk.form.assign_to
 
 class WebForm(WebsiteGenerator):
 	website = frappe._dict(
@@ -176,7 +177,7 @@ def accept():
 					pass
 
 			doc.set(fieldname, value)
-# Send if thier email
+	# Send if thier email
 	if doc.get("email_id"):
 		sender = frappe.get_site_config(frappe.local.sites_path)['sender_email']
 		frappe.sendmail(recipients=doc.get("email_id"), sender=sender, subject=_('New Subscribe'),
@@ -213,6 +214,9 @@ def accept():
 			doc.set(fieldname, filedoc.file_url)
 
 		doc.save()
+
+
+
 
 @frappe.whitelist()
 def delete(web_form, name):

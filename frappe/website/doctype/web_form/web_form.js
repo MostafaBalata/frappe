@@ -7,7 +7,7 @@ frappe.web_form = {
 				var fields = $.map(frappe.get_doc("DocType", frm.doc.doc_type).fields, function(d) {
 					return frappe.model.no_value_type.indexOf(d.fieldtype)===-1 ?
 						 d.fieldname : null;
-				})
+				});
 				frappe.meta.get_docfield("Web Form Field", "fieldname", frm.doc.name).options
 					= [""].concat(fields);
 			});

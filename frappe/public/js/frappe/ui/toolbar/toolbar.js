@@ -48,7 +48,7 @@ $.extend(frappe.ui.toolbar, {
 				click.apply(this);
 			});
 	},
-	get_menu: function(label) {
+	get_menuget_menu: function(label) {
 		return $("#navbar-" + label.toLowerCase());
 	},
 	add_menu_divider: function(menu) {
