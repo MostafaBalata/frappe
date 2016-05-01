@@ -1656,7 +1656,7 @@ apps/frappe/frappe/print/page/print_format_builder/print_format_builder_start.ht
 apps/frappe/frappe/workflow/doctype/workflow/workflow.py +38,Created Custom Field {0} in {1},إنشاء الحقل المخصص {0} في {1}
 DocType: System Settings,Time Zone,منطقة زمنية
 apps/frappe/frappe/core/page/user_permissions/user_permissions.js +31,A user can be permitted to multiple records of the same DocType.,يمكن أن يسمح للمستخدم بسجلات متعددة من نفس نوع المستند (DocType).
-DocType: Workflow State,Home,سطح المنزل
+DocType: Workflow State,Home,سطح المكتب
 DocType: Workflow State,question-sign,علامة سؤال
 DocType: Email Account,Add Signature,إضافة التوقيع
 apps/frappe/frappe/email/doctype/email_unsubscribe/email_unsubscribe.py +38,Left this conversation,تركت هذه المحادثة
