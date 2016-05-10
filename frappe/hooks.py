@@ -5,7 +5,8 @@ app_publisher = "Frappe Technologies Pvt. Ltd."
 app_description = "Full stack web framework with Python, Javascript, MariaDB, Redis, Node"
 
 app_icon = "octicon octicon-circuit-board"
-app_version = "6.23.3"
+app_version = "6.27.17"
+
 app_color = "orange"
 source_link = "https://github.com/frappe/frappe"
 app_license = "MIT"
@@ -21,8 +22,7 @@ app_include_js = [
 	"assets/js/editor.min.js",
 	"assets/js/list.min.js",
 	"assets/js/form.min.js",
-	"assets/js/report.min.js",
-	"assets/js/module.min.js"
+	"assets/js/report.min.js"
 ]
 app_include_css = [
 	"assets/css/desk.min.css",

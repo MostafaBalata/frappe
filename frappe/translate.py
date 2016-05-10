@@ -165,19 +165,31 @@ def get_lang_js(fortype, name):
 
 def get_full_dict(lang):
 	"""Load and return the entire translations dictionary for a language from :meth:`frape.cache`
-
 	:param lang: Language Code, e.g. `hi`
 	"""
-	if not lang or lang == "en":
+	if not lang:
 		return {}
 
-	if not frappe.local.lang_full_dict:
-		frappe.local.lang_full_dict = frappe.cache().hget("lang_full_dict", lang)
-		if not frappe.local.lang_full_dict:
-			frappe.local.lang_full_dict = load_lang(lang)
+	# found in local, return!
+	if frappe.local.lang_full_dict is not None:
+		return frappe.local.lang_full_dict
 
-			# cache lang
-			frappe.cache().hset("lang_full_dict", lang, frappe.local.lang_full_dict)
+	frappe.local.lang_full_dict = frappe.cache().hget("lang_full_dict", lang)
+
+	if frappe.local.lang_full_dict is None:
+		frappe.local.lang_full_dict = load_lang(lang)
+
+		# only cache file translations in this
+		frappe.cache().hset("lang_full_dict", lang, frappe.local.lang_full_dict)
+
+	try:
+		# get user specific transaltion data
+		user_translations = get_user_translations(lang)
+	except Exception:
+		user_translations = None
+
+	if user_translations:
+		frappe.local.lang_full_dict.update(user_translations)
 
 	return frappe.local.lang_full_dict
 
@@ -209,6 +221,23 @@ def get_translation_dict_from_file(path, lang, app):
 				))
 
 	return cleaned
+
+
+def get_user_translations(lang):
+	out = frappe.cache().hget('lang_user_translations', lang)
+	if out is None:
+		out = {}
+		for fields in frappe.get_all('Translation',
+			fields= ["source_name", "target_name"],filters={'language_code': lang}):
+				out.update({fields.source_name: fields.target_name})
+		frappe.cache().hset('lang_user_translations', lang, out)
+
+	return out
+
+# def get_user_translation_key():
+# 	return 'lang_user_translations:{0}'.format(frappe.local.site)
+
+
 
 def clear_cache():
 	"""Clear all translation assets from :meth:`frappe.cache`"""
