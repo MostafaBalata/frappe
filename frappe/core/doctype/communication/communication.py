@@ -5,10 +5,12 @@ from __future__ import unicode_literals, absolute_import
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import validate_email_add, get_fullname, strip_html
-from frappe.model.db_schema import add_column
-from frappe.core.doctype.communication.comment import validate_comment, notify_mentions, update_comment_in_doc
-from frappe.core.doctype.communication.email import validate_email, notify, _notify, update_parent_status
+from frappe.utils import validate_email_add, get_fullname, strip_html, cstr
+from frappe.core.doctype.communication.comment import (validate_comment,
+	notify_mentions, update_comment_in_doc)
+from frappe.core.doctype.communication.email import (validate_email,
+	notify, _notify, update_parent_status)
+from frappe.utils.bot import BotReply
 from email.utils import parseaddr
 from collections import Counter
 
@@ -57,7 +59,7 @@ class Communication(Document):
 			if self.communication_type == "Comment":
 				notify_mentions(self)
 
-		elif self.communication_type in ("Chat", "Notification"):
+		elif self.communication_type in ("Chat", "Notification", "Bot"):
 			if self.reference_name == frappe.session.user:
 				message = self.as_dict()
 				message['broadcast'] = True
@@ -71,6 +73,7 @@ class Communication(Document):
 		"""Update parent status as `Open` or `Replied`."""
 		update_parent_status(self)
 		update_comment_in_doc(self)
+		self.bot_reply()
 
 	def on_trash(self):
 		if (not self.flags.ignore_permissions
@@ -158,7 +161,7 @@ class Communication(Document):
 
 	def notify(self, print_html=None, print_format=None, attachments=None,
 		recipients=None, cc=None, fetched_from_email_account=False):
-		"""Calls a delayed celery task 'sendmail' that enqueus email in Bulk Email queue
+		"""Calls a delayed task 'sendmail' that enqueus email in Bulk Email queue
 
 		:param print_html: Send given value as HTML attachment
 		:param print_format: Attach print format of parent document
@@ -174,6 +177,20 @@ class Communication(Document):
 		recipients=None, cc=None):
 
 		_notify(self, print_html, print_format, attachments, recipients, cc)
+
+	def bot_reply(self):
+		if self.comment_type == 'Bot' and self.communication_type == 'Chat':
+			reply = BotReply().get_reply(self.content)
+			if reply:
+				frappe.get_doc({
+					"doctype": "Communication",
+					"comment_type": "Bot",
+					"communication_type": "Bot",
+					"content": cstr(reply),
+					"reference_doctype": self.reference_doctype,
+					"reference_name": self.reference_name
+				}).insert()
+				frappe.local.flags.commit = True
 
 	def set_delivery_status(self, commit=False):
 		'''Look into the status of Bulk Email linked to this Communication and set the Delivery Status of this Communication'''
@@ -208,6 +225,7 @@ def on_doctype_update():
 	"""Add index in `tabCommunication` for `(reference_doctype, reference_name)`"""
 	frappe.db.add_index("Communication", ["reference_doctype", "reference_name"])
 	frappe.db.add_index("Communication", ["timeline_doctype", "timeline_name"])
+	frappe.db.add_index("Communication", ["link_doctype", "link_name"])
 
 def has_permission(doc, ptype, user):
 	if ptype=="read" and doc.reference_doctype and doc.reference_name:

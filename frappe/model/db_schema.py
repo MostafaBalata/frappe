@@ -212,6 +212,13 @@ class DbTable:
 					"fieldtype": "Text"
 				})
 
+			# add _seen column if track_seen
+			if getattr(self.meta, 'track_seen', False):
+				fl.append({
+					'fieldname': '_seen',
+					'fieldtype': 'Text'
+				})
+
 		if not frappe.flags.in_install_db and frappe.flags.in_install != "frappe":
 			custom_fl = frappe.db.sql("""\
 				SELECT * FROM `tabCustom Field`
@@ -568,7 +575,7 @@ def get_definition(fieldtype, precision=None, length=None):
 
 	if size:
 		if fieldtype in ["Float", "Currency", "Percent"] and cint(precision) > 6:
-			size = '18,9'
+			size = '21,9'
 
 		if coltype == "varchar" and length:
 			size = length

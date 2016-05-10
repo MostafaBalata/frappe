@@ -3,7 +3,7 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cint, get_gravatar, format_datetime, now_datetime, get_formatted_email
+from frappe.utils import cint, has_gravatar, format_datetime, now_datetime, get_formatted_email
 from frappe import throw, msgprint, _
 from frappe.auth import _update_password
 from frappe.desk.notifications import clear_notifications
@@ -39,7 +39,8 @@ class User(Document):
 		if self.name not in STANDARD_USERS:
 			self.validate_email_type(self.email)
 		self.add_system_manager_role()
-		self.validate_system_manager_user_type()
+		self.set_system_user()
+		self.set_full_name()
 		self.check_enable_disable()
 		self.update_gravatar()
 		self.ensure_unique_roles()
@@ -49,6 +50,9 @@ class User(Document):
 
 		if self.language == "Loading...":
 			self.language = None
+
+	def set_full_name(self):
+		self.full_name = " ".join(filter(None, [self.first_name, self.last_name]))
 
 	def check_enable_disable(self):
 		# do not allow disabling administrator/guest
@@ -75,11 +79,18 @@ class User(Document):
 				"role": "System Manager"
 			})
 
-	def validate_system_manager_user_type(self):
-		#if user has system manager role then user type should be system user
-		if ("System Manager" in [user_role.role for user_role in
-			self.get("user_roles")]) and self.get("user_type") != "System User":
-				frappe.throw(_("User with System Manager Role should always have User Type: System User"))
+		if self.name == 'Administrator':
+			# Administrator should always have System Manager Role
+			self.extend("user_roles", [
+				{
+					"doctype": "UserRole",
+					"role": "System Manager"
+				},
+				{
+					"doctype": "UserRole",
+					"role": "Administrator"
+				}
+			])
 
 	def email_new_password(self, new_password=None):
 		if new_password and not self.in_insert:
@@ -88,6 +99,12 @@ class User(Document):
 			if self.send_password_update_notification:
 				self.password_update_mail(new_password)
 				frappe.msgprint(_("New password emailed"))
+
+	def set_system_user(self):
+		if self.user_roles or self.name == 'Administrator':
+			self.user_type = 'System User'
+		else:
+			self.user_type = 'Website User'
 
 	def on_update(self):
 		# clear new password
@@ -133,7 +150,7 @@ class User(Document):
 
 	def update_gravatar(self):
 		if not self.user_image:
-			self.user_image = get_gravatar(self.name)
+			self.user_image = has_gravatar(self.name)
 
 	@Document.hook
 	def validate_reset_password(self):
@@ -298,13 +315,13 @@ class User(Document):
 	def remove_all_roles_for_guest(self):
 		if self.name == "Guest":
 			self.set("user_roles", list(set(d for d in self.get("user_roles") if d.role == "Guest")))
-			
+
 	def remove_disabled_roles(self):
 		disabled_roles = [d.name for d in frappe.get_all("Role", filters={"disabled":1})]
 		for role in list(self.get('user_roles')):
 			if role.role in disabled_roles:
 				self.get('user_roles').remove(role)
-		
+
 	def ensure_unique_roles(self):
 		exists = []
 		for i, d in enumerate(self.get("user_roles")):
@@ -324,8 +341,10 @@ class User(Document):
 		self.username = self.username.strip(" @")
 
 		if self.username_exists():
-			frappe.msgprint(_("Username {0} already exists").format(self.username))
-			self.suggest_username()
+			if self.user_type == 'System User':
+				frappe.msgprint(_("Username {0} already exists").format(self.username))
+				self.suggest_username()
+
 			self.username = ""
 
 		# should be made up of characters, numbers and underscore only
@@ -401,14 +420,23 @@ def update_password(new_password, key=None, old_password=None):
 
 	_update_password(user, new_password)
 
-	frappe.db.set_value("User", user, "reset_password_key", "")
+	user_doc, redirect_url = reset_user_data(user)
 
 	frappe.local.login_manager.login_as(user)
 
-	if frappe.db.get_value("User", user, "user_type")=="System User":
+	if user_doc.user_type == "System User":
 		return "/desk"
 	else:
-		return "/"
+		return redirect_url if redirect_url else "/"
+
+def reset_user_data(user):
+	user_doc = frappe.get_doc("User", user)
+	redirect_url = user_doc.redirect_url
+	user_doc.reset_password_key = ''
+	user_doc.redirect_url = ''
+	user_doc.save(ignore_permissions=True)
+
+	return user_doc, redirect_url
 
 @frappe.whitelist()
 def verify_password(password):
@@ -462,7 +490,6 @@ def user_query(doctype, txt, searchfield, start, page_len, filters):
 		where enabled=1
 			and docstatus < 2
 			and name not in ({standard_users})
-			and user_type != 'Website User'
 			and ({key} like %s
 				or concat_ws(' ', first_name, middle_name, last_name) like %s)
 			{mcond}

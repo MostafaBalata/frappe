@@ -8,7 +8,7 @@ from __future__ import unicode_literals
 
 from werkzeug.local import Local, release_local
 from functools import wraps
-import os, importlib, inspect, logging, json
+import os, importlib, inspect, json
 
 # public
 from frappe.__version__ import __version__
@@ -179,6 +179,27 @@ def get_site_config(sites_path=None, site_path=None):
 
 	return _dict(config)
 
+def get_conf(site=None):
+	if hasattr(local, 'conf'):
+		return local.conf
+
+	else:
+		# if no site, get from common_site_config.json
+		with init_site(site):
+			return local.conf
+
+class init_site:
+	def __init__(self, site=None):
+		'''If site==None, initialize it for empty site ('') to load common_site_config.json'''
+		self.site = site or ''
+
+	def __enter__(self):
+		init(self.site)
+		return local
+
+	def __exit__(self, type, value, traceback):
+		destroy()
+
 def destroy():
 	"""Closes connection and releases werkzeug local."""
 	if db:
@@ -194,7 +215,6 @@ def cache():
 	if not redis_server:
 		from frappe.utils.redis_wrapper import RedisWrapper
 		redis_server = RedisWrapper.from_url(conf.get('redis_cache')
-			or conf.get("cache_redis_server")
 			or "redis://localhost:11311")
 	return redis_server
 
@@ -361,7 +381,6 @@ def sendmail(recipients=(), sender="", subject="No Subject", message="No Message
 				subject=subject, msg=content or message, attachments=attachments, reply_to=reply_to,
 				cc=cc, message_id=message_id, in_reply_to=in_reply_to)
 
-logger = None
 whitelisted = []
 guest_methods = []
 xss_safe_methods = []
@@ -427,13 +446,16 @@ def clear_cache(user=None, doctype=None):
 
 	frappe.local.role_permissions = {}
 
-def has_permission(doctype, ptype="read", doc=None, user=None, verbose=False, throw=False):
+def has_permission(doctype=None, ptype="read", doc=None, user=None, verbose=False, throw=False):
 	"""Raises `frappe.PermissionError` if not permitted.
 
 	:param doctype: DocType for which permission is to be check.
 	:param ptype: Permission type (`read`, `write`, `create`, `submit`, `cancel`, `amend`). Default: `read`.
 	:param doc: [optional] Checks User permissions for given doc.
 	:param user: [optional] Check for given user. Default: current user."""
+	if not doctype and doc:
+		doctype = doc.doctype
+
 	import frappe.permissions
 	out = frappe.permissions.has_permission(doctype, ptype, doc=doc, verbose=verbose, user=user)
 	if throw and not out:
@@ -461,7 +483,7 @@ def has_website_permission(doctype, ptype="read", doc=None, user=None, verbose=F
 			doc = get_doc(doctype, doc)
 
 		for method in hooks:
-			result = call(get_attr(method), doc=doc, ptype=ptype, user=user, verbose=verbose)
+			result = call(method, doc=doc, ptype=ptype, user=user, verbose=verbose)
 			# if even a single permission check is Falsy
 			if not result:
 				return False
@@ -678,6 +700,22 @@ def get_installed_apps(sort=False, frappe_last=False):
 
 	return installed
 
+def get_doc_hooks():
+	'''Returns hooked methods for given doc. It will expand the dict tuple if required.'''
+	if not hasattr(local, 'doc_events_hooks'):
+		hooks = get_hooks('doc_events', {})
+		out = {}
+		for key, value in hooks.iteritems():
+			if isinstance(key, tuple):
+				for doctype in key:
+					append_hook(out, doctype, value)
+			else:
+				append_hook(out, key, value)
+
+		local.doc_events_hooks = out
+
+	return local.doc_events_hooks
+
 def get_hooks(hook=None, default=None, app_name=None):
 	"""Get hooks via `app/hooks.py`
 
@@ -701,19 +739,6 @@ def get_hooks(hook=None, default=None, app_name=None):
 					append_hook(hooks, key, getattr(app_hooks, key))
 		return hooks
 
-	def append_hook(target, key, value):
-		if isinstance(value, dict):
-			target.setdefault(key, {})
-			for inkey in value:
-				append_hook(target[key], inkey, value[inkey])
-		else:
-			append_to_list(target, key, value)
-
-	def append_to_list(target, key, value):
-		target.setdefault(key, [])
-		if not isinstance(value, list):
-			value = [value]
-		target[key].extend(value)
 
 	if app_name:
 		hooks = _dict(load_app_hooks(app_name))
@@ -724,6 +749,26 @@ def get_hooks(hook=None, default=None, app_name=None):
 		return hooks.get(hook) or (default if default is not None else [])
 	else:
 		return hooks
+
+def append_hook(target, key, value):
+	'''appends a hook to the the target dict.
+
+	If the hook key, exists, it will make it a key.
+
+	If the hook value is a dict, like doc_events, it will
+	listify the values against the key.
+	'''
+	if isinstance(value, dict):
+		# dict? make a list of values against each key
+		target.setdefault(key, {})
+		for inkey in value:
+			append_hook(target[key], inkey, value[inkey])
+	else:
+		# make a list
+		target.setdefault(key, [])
+		if not isinstance(value, list):
+			value = [value]
+		target[key].extend(value)
 
 def setup_module_map():
 	"""Rebuild map of all modules (internal)."""
@@ -790,6 +835,9 @@ def get_attr(method_string):
 
 def call(fn, *args, **kwargs):
 	"""Call a function and match arguments."""
+	if isinstance(fn, basestring):
+		fn = get_attr(fn)
+
 	if hasattr(fn, 'fnargs'):
 		fnargs = fn.fnargs
 	else:
@@ -902,6 +950,40 @@ def respond_as_web_page(title, html, success=None, http_status_code=None, contex
 
 	if context:
 		local.response['context'] = context
+
+def redirect_to_message(title, html, http_status_code=None, context=None):
+	"""Redirects to /message?id=random
+	Similar to respond_as_web_page, but used to 'redirect' and show message pages like success, failure, etc. with a detailed message
+
+	:param title: Page title and heading.
+	:param message: Message to be shown.
+	:param http_status_code: HTTP status code.
+
+	Example Usage:
+		frappe.redirect_to_message(_('Thank you'), "<div><p>You will receive an email at test@example.com</p></div>")
+
+	"""
+
+	message_id = generate_hash(length=8)
+	message = {
+		'context': context or {},
+		'http_status_code': http_status_code or 200
+	}
+	message['context'].update({
+		'header': title,
+		'title': title,
+		'message': html
+	})
+
+	cache().set_value("message_id:{0}".format(message_id), message, expires_in_sec=60)
+	location = '/message?id={0}'.format(message_id)
+
+	if not getattr(local, 'is_ajax', False):
+		local.response["type"] = "redirect"
+		local.response["location"] = location
+
+	else:
+		return location
 
 def build_match_conditions(doctype, as_condition=True):
 	"""Return match (User permissions) for given doctype as list or SQL."""
@@ -1057,20 +1139,6 @@ def attach_print(doctype, name, file_name=None, print_format=None, style=None, h
 
 	return out
 
-logging_setup_complete = False
-def get_logger(module=None, loglevel="DEBUG"):
-	from frappe.setup_logging import setup_logging
-	global logging_setup_complete
-
-	if not logging_setup_complete:
-		setup_logging()
-		logging_setup_complete = True
-
-	logger = logging.getLogger(module or "frappe")
-	logger.setLevel(logging.DEBUG)
-
-	return logger
-
 def publish_realtime(*args, **kwargs):
 	"""Publish real-time updates
 
@@ -1112,3 +1180,10 @@ def get_doctype_app(doctype):
 		return local.module_app[scrub(doctype_module)]
 
 	return local_cache("doctype_app", doctype, generator=_get_doctype_app)
+
+loggers = {}
+log_level = None
+def logger(module=None, with_more_info=True):
+	'''Returns a python logger that uses StreamHandler'''
+	from frappe.utils.logger import get_logger
+	return get_logger(module or __name__, with_more_info=with_more_info)

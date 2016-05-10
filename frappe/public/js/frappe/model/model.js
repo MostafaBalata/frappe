@@ -524,7 +524,7 @@ $.extend(frappe.model, {
 			}
 		}
 		return all;
-	}
+	},
 });
 
 // legacy

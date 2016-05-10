@@ -236,11 +236,15 @@ frappe.views.ReportView = frappe.ui.Listing.extend({
 			var docfield = frappe.meta.docfield_map[c[1] || me.doctype][c[0]];
 			if(!docfield) {
 				var docfield = frappe.model.get_std_field(c[0]);
-				docfield.parent = me.doctype;
-				if(c[0]=="name") {
-					docfield.options = me.doctype;
+				if(docfield) {
+					docfield.parent = me.doctype;
+					if(c[0]=="name") {
+						docfield.options = me.doctype;
+					}
 				}
 			}
+			if(!docfield) return;
+			
 			coldef = {
 				id: c[0],
 				field: c[0],
@@ -627,8 +631,7 @@ frappe.ui.ColumnPicker = Class.extend({
 		this.columns = [];
 		$(this.dialog.body).html('<div class="text-muted">'+__("Drag to sort columns")+'</div>\
 			<div class="column-list"></div>\
-			<div><button class="btn btn-default btn-add"><i class="icon-plus"></i>\
-				'+__("Add Column")+'</button></div>');
+			<div><button class="btn btn-default btn-sm btn-add">'+__("Add Column")+'</button></div>');
 
 	},
 	show: function(columns) {

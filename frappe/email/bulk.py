@@ -19,6 +19,7 @@ def send(recipients=None, sender=None, subject=None, message=None, reference_doc
 		attachments=None, reply_to=None, cc=(), show_as_cc=(), message_id=None, in_reply_to=None, send_after=None,
 		expose_recipients=False, bulk_priority=1, communication=None):
 	"""Add email to sending queue (Bulk Email)
+
 	:param recipients: List of recipients.
 	:param sender: Email sender.
 	:param subject: Email subject.
