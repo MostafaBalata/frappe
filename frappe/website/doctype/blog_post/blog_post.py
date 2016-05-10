@@ -73,6 +73,10 @@ class BlogPost(WebsiteGenerator):
 			context.metatags["image"] = image
 
 		context.comment_list = get_comment_list(self.doctype, self.name)
+		if not context.comment_list:
+			context.comment_text = _('No comments yet')
+		else:
+			context.comment_text = _('{0} comments').format(len(context.comment_list))
 
 		context.children = get_children()
 
@@ -82,13 +86,13 @@ class BlogPost(WebsiteGenerator):
 
 def get_list_context(context=None):
 	list_context = frappe._dict(
-		page_title = _("Blog"),
 		template = "templates/includes/blog/blog.html",
 		row_template = "templates/includes/blog/blog_row.html",
 		get_list = get_blog_list,
 		hide_filters = True,
 		children = get_children(),
 		blog_cats = get_blog_cats(),
+		show_search = True
 	)
 
 	if frappe.local.form_dict.category:
@@ -141,7 +145,8 @@ def get_blog_list(doctype, txt=None, filters=None, limit_start=0, limit_page_len
 			t1.title, t1.name, t1.blog_category, t1.parent_website_route, t1.published_on,
 				concat(t1.parent_website_route, "/", t1.page_name) as page_name,t1.image,
 				t1.published_on as creation,
-				ifnull(t1.blog_intro, t1.content) as content,
+				t1.content as content,
+				ifnull(t1.blog_intro, t1.content) as intro,
 				t2.full_name, t2.avatar, t1.blogger,
 				(select count(name) from `tabCommunication`
 					where
@@ -163,7 +168,7 @@ def get_blog_list(doctype, txt=None, filters=None, limit_start=0, limit_page_len
 
 	for post in posts:
 		post.published = global_date_format(post.creation)
-		post.content = strip_html_tags(post.content[:140])
+		post.content = strip_html_tags(post.content[:340])
 		if not post.comments:
 			post.comment_text = _('No comments yet')
 		elif post.comments==1:

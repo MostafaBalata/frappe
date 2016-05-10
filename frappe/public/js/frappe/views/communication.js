@@ -136,7 +136,8 @@ frappe.views.CommunicationComposer = Class.extend({
 		var me = this;
 		this.dialog.get_input("standard_reply").on("change", function() {
 			var standard_reply = $(this).val();
-			var prepend_reply = function() {
+
+			var prepend_reply = function(reply_html) {
 				if(me.reply_added===standard_reply) {
 					return;
 				}
@@ -146,30 +147,27 @@ frappe.views.CommunicationComposer = Class.extend({
 				parts = content.split('<!-- salutation-ends -->');
 
 				if(parts.length===2) {
-					content = [parts[0], frappe.standard_replies[standard_reply],
-						"<br>", parts[1]];
+					content = [reply_html, "<br>", parts[1]];
 				} else {
-					content = [frappe.standard_replies[standard_reply],
-						"<br>", content];
+					content = [reply_html, "<br>", content];
 				}
 
 				content_field.set_input(content.join(''));
 
 				me.reply_added = standard_reply;
 			}
-			if(frappe.standard_replies[standard_reply]) {
-				prepend_reply();
-			} else {
-				$.ajax({
-					url:"/api/resource/Standard Reply/" + standard_reply,
-					statusCode: {
-						200: function(data) {
-							frappe.standard_replies[standard_reply] = data.data.response;
-							prepend_reply();
-						}
-					}
-				});
-			}
+
+			frappe.call({
+				method: 'frappe.email.doctype.standard_reply.standard_reply.get_standard_reply',
+				args: {
+					template_name: standard_reply,
+					doc: me.frm.doc
+				},
+				callback: function(r) {
+					prepend_reply(r.message);
+				}
+			});
+
 		});
 	},
 
@@ -464,15 +462,14 @@ frappe.views.CommunicationComposer = Class.extend({
 					return frappe.call({
 						method:'frappe.email.get_contact_list',
 						args: {
-							'select': "email_id",
-							'from': "Contact",
-							'where': "email_id",
+							'fieldname': "email_id",
+							'doctype': "Contact",
 							'txt': extractLast(request.term).value || '%'
 						},
 						quiet: true,
 						callback: function(r) {
 							response($.ui.autocomplete.filter(
-								r.cl || [], extractLast(request.term)));
+								r.message || [], extractLast(request.term)));
 						}
 					});
 				},

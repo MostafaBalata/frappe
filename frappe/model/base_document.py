@@ -7,6 +7,7 @@ from frappe import _
 from frappe.utils import cint, flt, now, cstr, strip_html, getdate, get_datetime, to_timedelta
 from frappe.model import default_fields
 from frappe.model.naming import set_new_name
+from frappe.model.utils.link_count import notify_link_count
 from frappe.modules import load_doctype_module
 from frappe.model import display_fieldtypes
 from frappe.model.db_schema import type_map, varchar_len
@@ -184,11 +185,13 @@ class BaseDocument(object):
 
 			df = self.meta.get_field(fieldname)
 			if df:
-				if df.fieldtype in ("Check", "Int") and not isinstance(d[fieldname], int):
+				if df.fieldtype=="Check" and (not isinstance(d[fieldname], int) or d[fieldname] > 1):
+					d[fieldname] = 1 if cint(d[fieldname]) else 0
+
+				elif df.fieldtype=="Int" and not isinstance(d[fieldname], int):
 					d[fieldname] = cint(d[fieldname])
 
 				elif df.fieldtype in ("Currency", "Float", "Percent") and not isinstance(d[fieldname], float):
-					
 					d[fieldname] = flt(d[fieldname])
 
 				elif df.fieldtype in ("Datetime", "Date") and d[fieldname]=="":
@@ -197,6 +200,9 @@ class BaseDocument(object):
 				elif df.get("unique") and cstr(d[fieldname]).strip()=="":
 					# unique empty field should be set to None
 					d[fieldname] = None
+
+				if isinstance(d[fieldname], list) and df.fieldtype != 'Table':
+					frappe.throw(_('Value for {0} cannot be a list').format(_(df.label)))
 
 		return d
 
@@ -303,13 +309,19 @@ class BaseDocument(object):
 			return
 
 		d = self.get_valid_dict()
+
+		# don't update name, as case might've been changed
+		name = d['name']
+		del d['name']
+
 		columns = d.keys()
+
 		try:
 			frappe.db.sql("""update `tab{doctype}`
 				set {values} where name=%s""".format(
 					doctype = self.doctype,
 					values = ", ".join(["`"+c+"`=%s" for c in columns])
-				), d.values() + [d.get("name")])
+				), d.values() + [name])
 		except Exception, e:
 			if e.args[0]==1062 and "Duplicate" in cstr(e.args[1]):
 				self.show_unique_validation_message(e)
@@ -342,6 +354,13 @@ class BaseDocument(object):
 
 		frappe.db.set_value(self.doctype, self.name, fieldname, value,
 			self.modified, self.modified_by, update_modified=update_modified)
+
+		self.run_method('on_change')
+
+	def update_modified(self):
+		'''Update modified timestamp'''
+		self.set("modified", now())
+		frappe.db.set_value(self.doctype, self.name, 'modified', self.modified, update_modified=False)
 
 	def _fix_numeric_types(self):
 		for df in self.meta.get("fields"):
@@ -394,11 +413,10 @@ class BaseDocument(object):
 
 		invalid_links = []
 		cancelled_links = []
-		for df in self.meta.get_link_fields() + self.meta.get("fields",
-			{"fieldtype":"Dynamic Link"}):
-
-
+		for df in (self.meta.get_link_fields()
+				 + self.meta.get("fields", {"fieldtype":"Dynamic Link"})):
 			docname = self.get(df.fieldname)
+
 			if docname:
 				if df.fieldtype=="Link":
 					doctype = df.options
@@ -411,7 +429,12 @@ class BaseDocument(object):
 
 				# MySQL is case insensitive. Preserve case of the original docname in the Link Field.
 				value = frappe.db.get_value(doctype, docname, "name", cache=True)
+				if frappe.get_meta(doctype).issingle:
+					value = doctype
+
 				setattr(self, df.fieldname, value)
+
+				notify_link_count(doctype, docname)
 
 				if not value:
 					invalid_links.append((df.fieldname, docname, get_msg(df, docname)))
@@ -578,6 +601,9 @@ class BaseDocument(object):
 				print_hide = df.print_hide
 			elif meta_df:
 				print_hide = meta_df.print_hide
+
+		if fieldname=='in_words':
+			print fieldname, print_hide, meta_df.print_hide
 
 		return print_hide
 

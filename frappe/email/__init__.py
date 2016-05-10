@@ -26,17 +26,26 @@ def sendmail_to_system_managers(subject, content):
 	send(get_email(get_system_managers(), None, content, subject))
 
 @frappe.whitelist()
-def get_contact_list():
+def get_contact_list(doctype, fieldname, txt):
 	"""Returns contacts (from autosuggest)"""
-	cond = ['`%s` like "%s%%"' % (frappe.db.escape(f),
-		frappe.db.escape(frappe.form_dict.get('txt'))) for f in frappe.form_dict.get('where').split(',')]
-	cl = frappe.db.sql("select `%s` from `tab%s` where %s" % (
-  			 frappe.db.escape(frappe.form_dict.get('select'))
-			,frappe.db.escape(frappe.form_dict.get('from'))
-			,' OR '.join(cond)
-		)
-	)
-	frappe.response['cl'] = filter(None, [c[0] for c in cl])
+	txt = txt.replace('%', '')
+
+	def get_users():
+		return filter(None, frappe.db.sql_list('select email from tabUser where email like %s',
+			('%' + txt + '%')))
+	try:
+		out = filter(None, frappe.db.sql_list('select `{0}` from `tab{1}` where `{0}` like %s'.format(fieldname, doctype),
+			'%' + txt + '%'))
+		if out:
+			out = get_users()
+	except Exception, e:
+		if e.args[0]==1146:
+			# no Contact, use User
+			out = get_users()
+		else:
+			raise
+
+	return out
 
 def get_system_managers():
 	return frappe.db.sql_list("""select parent FROM tabUserRole

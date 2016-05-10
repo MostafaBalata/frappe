@@ -54,15 +54,25 @@ def get_print_format_doc(print_format_name, meta):
 def get_html(doc, name=None, print_format=None, meta=None,
 	no_letterhead=None, trigger_print=False):
 
+	print_settings = frappe.db.get_singles_dict("Print Settings")
+
 	if isinstance(no_letterhead, basestring):
 		no_letterhead = cint(no_letterhead)
+
 	elif no_letterhead is None:
-		no_letterhead = not cint(frappe.db.get_single_value("Print Settings", "with_letterhead"))
+		no_letterhead = not cint(print_settings.with_letthead)
 
 	doc.flags.in_print = True
 
 	if not frappe.flags.ignore_print_permissions:
 		validate_print_permission(doc)
+
+	if doc.meta.is_submittable:
+		if doc.docstatus==0 and not print_settings.allow_print_for_draft:
+			frappe.throw(_("Not allowed to print draft documents"), frappe.PermissionError)
+
+		if doc.docstatus==2 and not print_settings.allow_print_for_cancelled:
+			frappe.throw(_("Not allowed to print cancelled documents"), frappe.PermissionError)
 
 	if hasattr(doc, "before_print"):
 		doc.before_print()
@@ -144,10 +154,48 @@ def get_html_and_style(doc, name=None, print_format=None, meta=None,
 	}
 
 @frappe.whitelist()
+def download_multi_pdf(doctype, name, format=None):
+	# name can include names of many docs of the same doctype.
+	totalhtml = ""
+	# Pagebreak to be added between each doc html
+	pagebreak = """<p style="page-break-after:always;"></p>"""
+
+	options = {}
+
+	import json
+	result = json.loads(name)
+	# Get html of each doc and combine including page breaks
+	for i, ss in enumerate(result):
+		html = frappe.get_print(doctype, ss, format)
+		if i == len(result)-1:
+			totalhtml = totalhtml + html
+		else:
+			totalhtml = totalhtml + html + pagebreak
+
+
+
+	frappe.local.response.filename = "{doctype}.pdf".format(doctype=doctype.replace(" ", "-").replace("/", "-"))
+
+
+	# Title of pdf
+	options.update({
+		'title': doctype,
+	})
+
+	frappe.local.response.filecontent = get_pdf(totalhtml,options)
+	frappe.local.response.type = "download"
+
+@frappe.whitelist()
 def download_pdf(doctype, name, format=None):
 	html = frappe.get_print(doctype, name, format)
 	frappe.local.response.filename = "{name}.pdf".format(name=name.replace(" ", "-").replace("/", "-"))
 	frappe.local.response.filecontent = get_pdf(html)
+	frappe.local.response.type = "download"
+
+@frappe.whitelist()
+def report_to_pdf(html):
+	frappe.local.response.filename = "report.pdf"
+	frappe.local.response.filecontent = get_pdf(html, {"orientation": "Landscape"})
 	frappe.local.response.type = "download"
 
 def validate_print_permission(doc):
@@ -190,7 +238,6 @@ def get_print_format(doctype, print_format):
 def make_layout(doc, meta, format_data=None):
 	"""Builds a hierarchical layout object from the fields list to be rendered
 	by `standard.html`
-
 	:param doc: Document to be rendered.
 	:param meta: Document meta object (doctype).
 	:param format_data: Fields sequence and properties defined by Print Format Builder."""
@@ -379,7 +426,6 @@ def column_has_value(data, fieldname):
 trigger_print_script = """
 <script>
 window.print();
-
 // close the window after print
 // NOTE: doesn't close if print is cancelled in Chrome
 setTimeout(function() {

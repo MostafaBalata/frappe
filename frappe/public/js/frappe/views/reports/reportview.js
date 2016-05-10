@@ -109,6 +109,11 @@ frappe.views.ReportView = frappe.ui.Listing.extend({
 		this.make_save();
 		this.make_user_permissions();
 		this.set_tag_and_status_filter();
+
+		// add to desktop
+		this.page.add_menu_item(__("Add to Desktop"), function() {
+			frappe.add_to_desktop(__('{0} Report', [me.doctype]), me.doctype);
+		}, true);
 	},
 
 	make_new_and_refresh: function() {
@@ -120,6 +125,7 @@ frappe.views.ReportView = frappe.ui.Listing.extend({
 		this.page.add_menu_item(__("New {0}", [this.doctype]), function() {
 			me.make_new_doc(me.doctype);
 		}, true);
+
 	},
 
 	set_init_columns: function() {
@@ -230,11 +236,15 @@ frappe.views.ReportView = frappe.ui.Listing.extend({
 			var docfield = frappe.meta.docfield_map[c[1] || me.doctype][c[0]];
 			if(!docfield) {
 				var docfield = frappe.model.get_std_field(c[0]);
-				docfield.parent = me.doctype;
-				if(c[0]=="name") {
-					docfield.options = me.doctype;
+				if(docfield) {
+					docfield.parent = me.doctype;
+					if(c[0]=="name") {
+						docfield.options = me.doctype;
+					}
 				}
 			}
+			if(!docfield) return;
+			
 			coldef = {
 				id: c[0],
 				field: c[0],
@@ -621,8 +631,7 @@ frappe.ui.ColumnPicker = Class.extend({
 		this.columns = [];
 		$(this.dialog.body).html('<div class="text-muted">'+__("Drag to sort columns")+'</div>\
 			<div class="column-list"></div>\
-			<div><button class="btn btn-default btn-add"><i class="icon-plus"></i>\
-				'+__("Add Column")+'</button></div>');
+			<div><button class="btn btn-default btn-sm btn-add">'+__("Add Column")+'</button></div>');
 
 	},
 	show: function(columns) {

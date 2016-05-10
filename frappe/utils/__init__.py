@@ -5,9 +5,13 @@
 
 from __future__ import unicode_literals
 from werkzeug.test import Client
-import os, sys, re, urllib
+import os, re, urllib, sys, json, md5, requests, traceback
+import bleach, bleach_whitelist
+from html5lib.sanitizer import HTMLSanitizer
+from markdown2 import markdown as _markdown
+
 import frappe
-import requests
+from frappe.utils.identicon import Identicon
 
 # utility functions like cint, int, flt, etc.
 from frappe.utils.data import *
@@ -20,7 +24,6 @@ default_fields = ['doctype', 'name', 'owner', 'creation', 'modified', 'modified_
 def getCSVelement(v):
 	"""
 		 Returns the CSV value of `v`, For example:
-
 		 * apple becomes "apple"
 		 * hi"there becomes "hi""there"
 	"""
@@ -67,6 +70,8 @@ def extract_email_id(email):
 
 def validate_email_add(email_str, throw=False):
 	"""Validates the email string"""
+	email_str = (email_str or "").strip()
+
 	if not email_str:
 		return False
 
@@ -97,7 +102,9 @@ def validate_email_add(email_str, throw=False):
 
 def split_emails(txt):
 	email_list = []
-	for email in re.split(''',(?=(?:[^"]|"[^"]*")*$)''', cstr(txt)):
+
+	# emails can be separated by comma or newline
+	for email in re.split('''[,\\n](?=(?:[^"]|"[^"]*")*$)''', cstr(txt)):
 		email = strip(cstr(email))
 		if email:
 			email_list.append(email)
@@ -110,30 +117,44 @@ def random_string(length):
 	from random import choice
 	return ''.join([choice(string.letters + string.digits) for i in range(length)])
 
+def has_gravatar(email):
+	'''Returns gravatar url if user has set an avatar at gravatar.com'''
+	if (frappe.flags.in_upload
+		or frappe.flags.in_install
+		or frappe.flags.in_test):
+		# no gravatar if via upload
+		# since querying gravatar for every item will be slow
+		return ''
+
+	gravatar_url = "https://secure.gravatar.com/avatar/{hash}?d=404&s=200".format(hash=md5.md5(email).hexdigest())
+	try:
+		res = requests.get(gravatar_url)
+		if res.status_code==200:
+			return gravatar_url
+		else:
+			return ''
+	except requests.exceptions.ConnectionError:
+		return ''
+
 def get_gravatar(email):
-	import md5
-	return "https://secure.gravatar.com/avatar/{hash}?d=retro".format(hash=md5.md5(email).hexdigest())
+	gravatar_url = has_gravatar(email)
+
+	if not gravatar_url:
+		gravatar_url = Identicon(email).base64()
+
+	return gravatar_url
 
 def get_traceback():
 	"""
 		 Returns the traceback of the Exception
 	"""
-	import traceback
-	exc_type, value, tb = sys.exc_info()
-
-	trace_list = traceback.format_tb(tb, None) + \
-		traceback.format_exception_only(exc_type, value)
-	body = "Traceback (innermost last):\n" + "%-20s %s" % \
-		(unicode((b"").join(trace_list[:-1]), 'utf-8'), unicode(trace_list[-1], 'utf-8'))
-
-	if frappe.logger:
-		frappe.logger.error('Db:'+(frappe.db and frappe.db.cur_db_name or '') \
-			+ ' - ' + body)
-
+	exc_type, exc_value, exc_tb = sys.exc_info()
+	trace_list = traceback.format_exception(exc_type, exc_value, exc_tb)
+	body = "".join(cstr(t) for t in trace_list)
 	return body
 
 def log(event, details):
-	frappe.logger.info(details)
+	frappe.logger().info(details)
 
 def dict_to_str(args, sep='&'):
 	"""
@@ -176,70 +197,6 @@ def remove_blanks(d):
 def strip_html_tags(text):
 	"""Remove html tags from text"""
 	return re.sub("\<[^>]*\>", "", text)
-
-def pprint_dict(d, level=1, no_blanks=True):
-	"""
-		Pretty print a dictionary with indents
-	"""
-	if no_blanks:
-		remove_blanks(d)
-
-	# make indent
-	indent, ret = '', ''
-	for i in range(0,level): indent += '\t'
-
-	# add lines
-	comment, lines = '', []
-	kl = d.keys()
-	kl.sort()
-
-	# make lines
-	for key in kl:
-		if key != '##comment':
-			tmp = {key: d[key]}
-			lines.append(indent + str(tmp)[1:-1] )
-
-	# add comment string
-	if '##comment' in kl:
-		ret = ('\n' + indent) + '# ' + d['##comment'] + '\n'
-
-	# open
-	ret += indent + '{\n'
-
-	# lines
-	ret += indent + ',\n\t'.join(lines)
-
-	# close
-	ret += '\n' + indent + '}'
-
-	return ret
-
-def get_common(d1,d2):
-	"""
-		returns (list of keys) the common part of two dicts
-	"""
-	return [p for p in d1 if p in d2 and d1[p]==d2[p]]
-
-def get_common_dict(d1, d2):
-	"""
-		return common dictionary of d1 and d2
-	"""
-	ret = {}
-	for key in d1:
-		if key in d2 and d2[key]==d1[key]:
-			ret[key] = d1[key]
-	return ret
-
-def get_diff_dict(d1, d2):
-	"""
-		return common dictionary of d1 and d2
-	"""
-	diff_keys = set(d2.keys()).difference(set(d1.keys()))
-
-	ret = {}
-	for d in diff_keys: ret[d] = d2[d]
-	return ret
-
 
 def get_file_timestamp(fn):
 	"""
@@ -379,12 +336,13 @@ def call_hook_method(hook, *args, **kwargs):
 	return out
 
 def update_progress_bar(txt, i, l):
-	lt = len(txt)
-	if lt < 36:
-		txt = txt + " "*(36-lt)
-	complete = int(float(i+1) / l * 40)
-	sys.stdout.write("\r{0}: [{1}{2}]".format(txt, "="*complete, " "*(40-complete)))
-	sys.stdout.flush()
+	if not getattr(frappe.local, 'request', None):
+		lt = len(txt)
+		if lt < 36:
+			txt = txt + " "*(36-lt)
+		complete = int(float(i+1) / l * 40)
+		sys.stdout.write("\r{0}: [{1}{2}]".format(txt, "="*complete, " "*(40-complete)))
+		sys.stdout.flush()
 
 def get_html_format(print_path):
 	html_format = None
@@ -413,11 +371,19 @@ def is_markdown(text):
 def get_sites(sites_path=None):
 	import os
 	if not sites_path:
-		sites_path = '.'
-	return [site for site in os.listdir(sites_path)
-			if os.path.isdir(os.path.join(sites_path, site))
-				and not site in ('assets',)]
+		sites_path = getattr(frappe.local, 'sites_path', None) or '.'
 
+	sites = []
+	for site in os.listdir(sites_path):
+		path = os.path.join(sites_path, site)
+
+		if (os.path.isdir(path)
+			and not os.path.islink(path)
+			and os.path.exists(os.path.join(path, 'site_config.json'))):
+			# is a dir and has site_config.json
+			sites.append(site)
+
+	return sites
 
 def get_request_session(max_retries=3):
 	from requests.packages.urllib3.util import Retry
@@ -427,11 +393,9 @@ def get_request_session(max_retries=3):
 	return session
 
 def watch(path, handler=None, debug=True):
-	import sys
 	import time
-	import logging
 	from watchdog.observers import Observer
-	from watchdog.events import LoggingEventHandler, FileSystemEventHandler
+	from watchdog.events import FileSystemEventHandler
 
 	class Handler(FileSystemEventHandler):
 		def on_any_event(self, event):
@@ -454,3 +418,59 @@ def watch(path, handler=None, debug=True):
 	except KeyboardInterrupt:
 		observer.stop()
 	observer.join()
+
+def sanitize_html(html):
+	"""
+	Sanitize HTML tags, attributes and style to prevent XSS attacks
+	Based on bleach clean, bleach whitelist and HTML5lib's Sanitizer defaults
+	Does not sanitize JSON, as it could lead to future problems
+	"""
+	if not isinstance(html, basestring):
+		return html
+
+	elif is_json(html):
+		return html
+
+	whitelisted_tags = (HTMLSanitizer.acceptable_elements + HTMLSanitizer.svg_elements
+		+ ["html", "head", "meta", "link", "body", "iframe", "style", "o:p"])
+
+	# retuns html with escaped tags, escaped orphan >, <, etc.
+	escaped_html = bleach.clean(html,
+		tags=whitelisted_tags,
+		attributes={"*": HTMLSanitizer.acceptable_attributes, "svg": HTMLSanitizer.svg_attributes},
+		styles=bleach_whitelist.all_styles,
+		strip_comments=False)
+
+	return escaped_html
+
+def is_json(text):
+	try:
+		json.loads(text)
+
+	except ValueError:
+		return False
+
+	else:
+		return True
+
+def markdown(text, sanitize=True):
+	html = _markdown(text)
+
+	if sanitize:
+		html = html.replace("<!-- markdown -->", "")
+		html = sanitize_html(html)
+
+	return html
+
+def sanitize_email(emails):
+	from email.utils import parseaddr, formataddr
+
+	sanitized = []
+	for e in split_emails(emails):
+		if not validate_email_add(e):
+			continue
+
+		fullname, email_id = parseaddr(e)
+		sanitized.append(formataddr((fullname, email_id)))
+
+	return ", ".join(sanitized)

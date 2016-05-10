@@ -117,6 +117,7 @@ CREATE TABLE `tabDocType` (
   `autoname` varchar(255) DEFAULT NULL,
   `name_case` varchar(255) DEFAULT NULL,
   `title_field` varchar(255) DEFAULT NULL,
+  `image_field` varchar(255) DEFAULT NULL,
   `timeline_field` varchar(255) DEFAULT NULL,
   `sort_field` varchar(255) DEFAULT NULL,
   `sort_order` varchar(255) DEFAULT NULL,
@@ -132,6 +133,7 @@ CREATE TABLE `tabDocType` (
   `allow_import` int(1) NOT NULL DEFAULT 0,
   `hide_toolbar` int(1) NOT NULL DEFAULT 0,
   `hide_heading` int(1) NOT NULL DEFAULT 0,
+  `track_seen` int(1) NOT NULL DEFAULT 0,
   `max_attachments` int(11) NOT NULL DEFAULT 0,
   `print_outline` varchar(255) DEFAULT NULL,
   `read_only_onload` int(1) NOT NULL DEFAULT 0,
@@ -145,6 +147,7 @@ CREATE TABLE `tabDocType` (
   `is_submittable` int(1) NOT NULL DEFAULT 0,
   `_user_tags` varchar(255) DEFAULT NULL,
   `custom` int(1) NOT NULL DEFAULT 0,
+  `beta` int(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`name`),
   KEY `parent` (`parent`)
 ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

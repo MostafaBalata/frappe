@@ -31,3 +31,5 @@ watchdog==0.8.0
 bleach
 Pillow
 beautifulsoup4
+rq
+schedule

@@ -4,6 +4,17 @@
 .result-list {
   min-height: 200px;
 }
+.sort-selector .dropdown:hover {
+  text-decoration: underline;
+}
+.list-filters {
+  position: relative;
+}
+.list-filters .sort-selector {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+}
 .show_filters {
   padding: 15px 15px 0px;
   border-bottom: 1px solid #d1d8dd;
@@ -152,6 +163,9 @@
 }
 .list-id {
   font-weight: bold;
+}
+.list-id.seen {
+  font-weight: normal;
 }
 .list-col {
   height: 20px;

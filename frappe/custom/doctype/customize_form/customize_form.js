@@ -24,6 +24,10 @@ frappe.ui.form.on("Customize Form", {
 				$(grid_row.row).css({"font-weight": "bold"});
 			}
 		});
+
+		$(frm.wrapper).on("grid-make-sortable", function(e, frm) {
+			frm.trigger("setup_sortable");
+		});
 	},
 
 	doc_type: function(frm) {
@@ -31,11 +35,25 @@ frappe.ui.form.on("Customize Form", {
 			return frm.call({
 				method: "fetch_to_customize",
 				doc: frm.doc,
+				freeze: true,
 				callback: function(r) {
 					frm.refresh();
+					frm.trigger("setup_sortable");
 				}
 			});
 		}
+	},
+
+	setup_sortable: function(frm) {
+		frm.doc.fields.forEach(function(f, i) {
+			var data_row = frm.page.body.find('[data-fieldname="fields"] [data-idx="'+ f.idx +'"] .data-row');
+
+			if(!f.is_custom_field) {
+				data_row.removeClass('sortable-handle');
+			} else {
+				data_row.addClass("highlight");
+			}
+		});
 	},
 
 	refresh: function(frm) {
@@ -80,6 +98,10 @@ frappe.ui.form.on("Customize Form Field", {
 			msgprint(__("Cannot delete standard field. You can hide it if you want"));
 			throw "cannot delete custom field";
 		}
+	},
+	fields_add: function(frm, cdt, cdn) {
+		var f = frappe.model.get_doc(cdt, cdn);
+		f.is_custom_field = 1;
 	}
 });
 

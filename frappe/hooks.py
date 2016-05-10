@@ -5,7 +5,8 @@ app_publisher = "Frappe Technologies Pvt. Ltd."
 app_description = "Full stack web framework with Python, Javascript, MariaDB, Redis, Node"
 
 app_icon = "octicon octicon-circuit-board"
-app_version = "6.23.3"
+app_version = "6.27.17"
+
 app_color = "orange"
 source_link = "https://github.com/frappe/frappe"
 app_license = "MIT"
@@ -21,8 +22,7 @@ app_include_js = [
 	"assets/js/editor.min.js",
 	"assets/js/list.min.js",
 	"assets/js/form.min.js",
-	"assets/js/report.min.js",
-	"assets/js/module.min.js"
+	"assets/js/report.min.js"
 ]
 app_include_css = [
 	"assets/css/desk.min.css",
@@ -38,6 +38,7 @@ web_include_js = [
 
 bootstrap = "assets/frappe/css/bootstrap.css"
 web_include_css = [
+	"assets/frappe/css/font/open-sans/open-sans.css",
 	"assets/css/frappe-web.css"
 ]
 website_route_rules = [
@@ -112,6 +113,7 @@ scheduler_events = {
 		"frappe.email.doctype.email_account.email_account.pull",
 		"frappe.email.doctype.email_account.email_account.notify_unreplied",
 		"frappe.utils.error.collect_error_snapshots",
+		"frappe.model.utils.link_count.update_link_count",
 	],
 	"daily": [
 		"frappe.email.bulk.clear_outbox",
@@ -148,3 +150,12 @@ sounds = [
 	# {"name": "alert", "src": "/assets/frappe/sounds/alert.mp3"},
 	# {"name": "chime", "src": "/assets/frappe/sounds/chime.mp3"},
 ]
+
+bot_parsers = [
+	'frappe.utils.bot.ShowNotificationBot',
+	'frappe.utils.bot.GetOpenListBot',
+	'frappe.utils.bot.ListBot',
+	'frappe.utils.bot.FindBot',
+	'frappe.utils.bot.CountBot'
+]
+

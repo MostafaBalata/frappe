@@ -53,6 +53,9 @@ frappe.ui.Page = Class.extend({
 					<div class="layout-footer hide"></div>\
 				</div>\
 			</div>');
+			// this.wrapper.find('.page-title')
+			// 	.removeClass('col-md-7').addClass('col-md-offset-2 col-md-5')
+			// 	.css({'padding-left': '45px'});
 		}
 
 		this.$title_area = this.wrapper.find("h1");
@@ -129,6 +132,8 @@ frappe.ui.Page = Class.extend({
 			icon: icon,
 			working_label: working_label
 		});
+
+		return this.btn_primary;
 	},
 
 	set_secondary_action: function(label, click, icon, working_label) {
@@ -138,6 +143,8 @@ frappe.ui.Page = Class.extend({
 			icon: icon,
 			working_label: working_label
 		});
+
+		return this.btn_secondary;
 	},
 
 	clear_action_of: function(btn) {
@@ -252,6 +259,10 @@ frappe.ui.Page = Class.extend({
 		}
 	},
 
+	clear_inner_toolbar: function() {
+		this.inner_toolbar.empty().addClass("hide");
+	},
+
 	//-- Sidebar --//
 
 	add_sidebar_item: function(label, action, insert_after, prepend) {
@@ -285,9 +296,11 @@ frappe.ui.Page = Class.extend({
 	set_title: function(txt, icon) {
 		if(!txt) txt = "";
 
-		// strip icon
+		// strip html
+		txt = strip_html(txt);
 		this.title = txt;
-		frappe.utils.set_title(txt.replace(/<[^>]*>/g, ""));
+
+		frappe.utils.set_title(txt);
 		if(icon) {
 			txt = '<span class="'+ icon +' text-muted" style="font-size: inherit;"></span> ' + txt;
 		}
@@ -297,25 +310,6 @@ frappe.ui.Page = Class.extend({
 	set_title_sub: function(txt) {
 		// strip icon
 		this.$sub_title_area.html(txt).toggleClass("hide", !!!txt);
-	},
-
-	add_module_icon: function(module, doctype, onclick, sub_title) {
-		var module_info = frappe.get_module(module);
-		if(!module_info) {
-			module_info = {
-				icon: "icon-question-sign",
-				color: "#ddd"
-			}
-		}
-		var icon = frappe.boot.doctype_icons[doctype] || module_info.icon;
-
-		this.get_main_icon(icon)
-			.attr("doctype-name", doctype);
-
-		this.set_title_left(function() {
-			var route = frappe.get_route()[0]==module_info.link ? "" : module_info.link;
-			frappe.set_route(route);
-		});
 	},
 
 	get_main_icon: function(icon) {
@@ -413,16 +407,7 @@ frappe.ui.Page = Class.extend({
 		this.current_view_name = name;
 
 		this.views[name].toggle(true);
+
+		this.wrapper.trigger('view-change');
 	}
 });
-
-frappe.ui.scroll = function(element, animate, additional_offset) {
-	var header_offset = $(".navbar").height() + $(".page-head").height();
-	var top = $(element).offset().top - header_offset - cint(additional_offset);
-	if (animate) {
-		$("html, body").animate({ scrollTop: top });
-	} else {
-		$(window).scrollTop(top);
-	}
-
-};

@@ -9,9 +9,9 @@ bootstrap client session
 import frappe
 import frappe.defaults
 import frappe.desk.desk_page
-from frappe.utils import get_gravatar
 from frappe.desk.form.load import get_meta_bundle
 from frappe.utils.change_log import get_versions
+from frappe.translate import get_lang_dict
 
 def get_bootinfo():
 	"""build and return boot info"""
@@ -24,33 +24,18 @@ def get_bootinfo():
 	get_user(bootinfo)
 
 	# system info
-	bootinfo['sysdefaults'] = frappe.defaults.get_defaults()
-	bootinfo['server_date'] = frappe.utils.nowdate()
+	bootinfo.sysdefaults = frappe.defaults.get_defaults()
+	bootinfo.server_date = frappe.utils.nowdate()
 
 	if frappe.session['user'] != 'Guest':
-		bootinfo['user_info'] = get_fullnames()
-		bootinfo['sid'] = frappe.session['sid'];
+		bootinfo.user_info = get_fullnames()
+		bootinfo.sid = frappe.session['sid'];
 
 	bootinfo.modules = {}
 	bootinfo.module_list = []
-	for app in frappe.get_installed_apps(frappe_last=True):
-		try:
-			modules = frappe.get_attr(app + ".config.desktop.get_data")() or {}
-			if isinstance(modules, dict):
-				bootinfo.modules.update(modules)
-			else:
-				for m in modules:
-					bootinfo.modules[m['module_name']] = m
-					bootinfo.module_list.append(m['module_name'])
-		except ImportError:
-			pass
-		except AttributeError:
-			pass
+	load_desktop_icons(bootinfo)
 
 	bootinfo.module_app = frappe.local.module_app
-	bootinfo.hidden_modules = frappe.db.get_global("hidden_modules")
-	bootinfo.doctype_icons = dict(frappe.db.sql("""select name, icon from
-		tabDocType where ifnull(icon,'')!=''"""))
 	bootinfo.single_types = frappe.db.sql_list("""select name from tabDocType where issingle=1""")
 	add_home_page(bootinfo, doclist)
 	bootinfo.page_info = get_allowed_pages()
@@ -62,29 +47,35 @@ def get_bootinfo():
 	bootinfo.home_folder = frappe.db.get_value("File", {"is_home_folder": 1})
 
 	# ipinfo
-	if frappe.session['data'].get('ipinfo'):
-		bootinfo['ipinfo'] = frappe.session['data']['ipinfo']
+	if frappe.session.data.get('ipinfo'):
+		bootinfo.ipinfo = frappe.session['data']['ipinfo']
 
 	# add docs
-	bootinfo['docs'] = doclist
+	bootinfo.docs = doclist
 
 	for method in hooks.boot_session or []:
 		frappe.get_attr(method)(bootinfo)
+	bootinfo.remember_selected = hooks.remember_selected
 
 	if bootinfo.lang:
 		bootinfo.lang = unicode(bootinfo.lang)
-	bootinfo['versions'] = {k: v['version'] for k, v in get_versions().items()}
+	bootinfo.versions = {k: v['version'] for k, v in get_versions().items()}
 
 	bootinfo.error_report_email = frappe.get_hooks("error_report_email")
 	bootinfo.calendars = sorted(frappe.get_hooks("calendars"))
+	bootinfo.lang_dict = get_lang_dict()
 
 	return bootinfo
 
 def load_conf_settings(bootinfo):
 	from frappe import conf
 	bootinfo.max_file_size = conf.get('max_file_size') or 10485760
-	for key in ['developer_mode']:
+	for key in ('developer_mode', 'socketio_port'):
 		if key in conf: bootinfo[key] = conf.get(key)
+
+def load_desktop_icons(bootinfo):
+	from frappe.desk.doctype.desktop_icon.desktop_icon import get_desktop_icons
+	bootinfo.desktop_icons = get_desktop_icons()
 
 def get_allowed_pages():
 	roles = frappe.get_roles()
@@ -123,16 +114,14 @@ def load_translations(bootinfo):
 
 def get_fullnames():
 	"""map of user fullnames"""
-	ret = frappe.db.sql("""select name,
-		concat(ifnull(first_name, ''),
-			if(ifnull(last_name, '')!='', ' ', ''), ifnull(last_name, '')) as fullname,
+	ret = frappe.db.sql("""select name, full_name as fullname,
 			user_image as image, gender, email, username
 		from tabUser where enabled=1 and user_type!="Website User" """, as_dict=1)
 
 	d = {}
 	for r in ret:
-		if not r.image:
-			r.image = get_gravatar()
+		# if not r.image:
+		# 	r.image = get_gravatar(r.name)
 		d[r.name] = r
 
 	return d

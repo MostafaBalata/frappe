@@ -8,7 +8,7 @@ import re
 import socket
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import validate_email_add, cint, get_datetime, DATE_FORMAT, strip, comma_or
+from frappe.utils import validate_email_add, cint, get_datetime, DATE_FORMAT, strip, comma_or, sanitize_html
 from frappe.utils.user import is_system_user
 from frappe.utils.jinja import render_template
 from frappe.email.smtp import SMTPServer
@@ -18,7 +18,9 @@ from dateutil.relativedelta import relativedelta
 from datetime import datetime, timedelta
 from frappe.desk.form import assign_to
 from frappe.utils.user import get_system_managers
+from frappe.utils.background_jobs import enqueue, get_jobs
 from frappe.core.doctype.communication.email import set_incoming_outgoing_accounts
+from frappe.utils.scheduler import log
 
 class SentEmailInInbox(Exception): pass
 
@@ -183,11 +185,14 @@ class EmailAccount(Document):
 
 				except Exception:
 					frappe.db.rollback()
+					log('email_account.receive')
 					exceptions.append(frappe.get_traceback())
 
 				else:
 					frappe.db.commit()
 					attachments = [d.file_name for d in communication._attachments]
+
+					# TODO fix bug where it sends emails to 'Adminsitrator' during testing
 					communication.notify(attachments=attachments, fetched_from_email_account=True)
 
 			if exceptions:
@@ -216,22 +221,26 @@ class EmailAccount(Document):
 
 		self.set_thread(communication, email)
 
+		communication.flags.in_receive = True
 		communication.insert(ignore_permissions = 1)
 
 		# save attachments
 		communication._attachments = email.save_attachments_in_doc(communication)
 
 		# replace inline images
+
+
 		dirty = False
 		for file in communication._attachments:
 			if file.name in email.cid_map and email.cid_map[file.name]:
 				dirty = True
-				communication.content = communication.content.replace("cid:{0}".format(email.cid_map[file.name]),
+
+				email.content = email.content.replace("cid:{0}".format(email.cid_map[file.name]),
 					file.file_url)
 
 		if dirty:
 			# not sure if using save() will trigger anything
-			communication.db_set("content", communication.content)
+			communication.db_set("content", sanitize_html(email.content))
 
 		# notify all participants of this thread
 		if self.enable_auto_reply and getattr(communication, "is_first", False):
@@ -366,15 +375,6 @@ def get_append_to(doctype=None, txt=None, searchfield=None, start=None, page_len
 	if not txt: txt = ""
 	return [[d] for d in frappe.get_hooks("email_append_to") if txt in d]
 
-def pull(now=False):
-	"""Will be called via scheduler, pull emails from all enabled Email accounts."""
-	import frappe.tasks
-	for email_account in frappe.get_list("Email Account", filters={"enable_incoming": 1}):
-		if now:
-			frappe.tasks.pull_from_email_account(frappe.local.site, email_account.name)
-		else:
-			frappe.tasks.pull_from_email_account.delay(frappe.local.site, email_account.name)
-
 def notify_unreplied():
 	"""Sends email notifications if there are unreplied Communications
 		and `notify_if_unreplied` is set as true."""
@@ -401,3 +401,24 @@ def notify_unreplied():
 
 				# update flag
 				comm.db_set("unread_notification_sent", 1)
+
+def pull(now=False):
+	"""Will be called via scheduler, pull emails from all enabled Email accounts."""
+	queued_jobs = get_jobs(site=frappe.local.site, key='job_name')[frappe.local.site]
+
+	for email_account in frappe.get_list("Email Account", filters={"enable_incoming": 1}):
+		if now:
+			pull_from_email_account(email_account.name)
+
+		else:
+			# job_name is used to prevent duplicates in queue
+			job_name = 'pull_from_email_account|{0}'.format(email_account.name)
+
+			if job_name not in queued_jobs:
+				enqueue(pull_from_email_account, 'short', event='all', job_name=job_name,
+					email_account=email_account.name)
+
+def pull_from_email_account(email_account):
+	'''Runs within a worker process'''
+	email_account = frappe.get_doc("Email Account", email_account)
+	email_account.receive()

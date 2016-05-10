@@ -26,12 +26,15 @@ frappe.confirm = function(message, ifyes, ifno) {
 		],
 		primary_action_label: __("Yes"),
 		primary_action: function() {
-			ifyes();
+			if(ifyes) ifyes();
 			d.hide();
 		},
 		secondary_action_label: __("No")
 	});
 	d.show();
+
+	// flag, used to bind "okay" on enter
+	d.confirm_dialog = true;
 
 	// no if closed without primary action
 	if(ifno) {
@@ -207,7 +210,7 @@ frappe.hide_progress = function() {
 }
 
 // Floating Message
-function show_alert(txt, seconds) {
+frappe.show_alert = function(txt, seconds) {
 	if(!$('#dialog-container').length) {
 		$('<div id="dialog-container"><div id="alert-container"></div></div>').appendTo('body');
 	}
@@ -226,3 +229,6 @@ function show_alert(txt, seconds) {
 	div.delay(seconds ? seconds * 1000 : 3000).fadeOut(300);
 	return div;
 }
+
+// for backward compatibility
+var show_alert = frappe.show_alert;

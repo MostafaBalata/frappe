@@ -38,6 +38,31 @@ $.extend(frappe.model, {
 			doc.__run_link_triggers = 1;
 		}
 
+		// set the name if called from a link field
+		if(frappe.route_options && frappe.route_options.name_field) {
+
+			var meta = frappe.get_meta(doctype);
+			// set title field / name as name
+			if(meta.autoname && meta.autoname.indexOf("field:")!==-1) {
+				doc[meta.autoname.substr(6)] = frappe.route_options.name_field;
+			} else if(meta.title_field) {
+				doc[meta.title_field] = frappe.route_options.name_field;
+			}
+
+
+			delete frappe.route_options.name_field;
+		}
+
+		// set route options
+		if(frappe.route_options) {
+			$.each(frappe.route_options, function(fieldname, value) {
+				if(frappe.meta.has_field(doctype, fieldname)) {
+					doc[fieldname]=value;
+				}
+			});
+			frappe.route_options = null;
+		}
+
 		return doc;
 	},
 
@@ -96,6 +121,9 @@ $.extend(frappe.model, {
 
 			// 2 - look in user defaults
 			var user_default = frappe.defaults.get_user_default(df.fieldname);
+			if(!user_default && df.fieldtype==='Link') {
+				user_default = frappe.defaults.get_user_default(df.options);
+			}
 			var is_allowed_user_default = user_default &&
 				(!has_user_permissions || user_permissions[df.options].indexOf(user_default)!==-1);
 
@@ -160,6 +188,12 @@ $.extend(frappe.model, {
 	},
 
 	add_child: function(parent_doc, doctype, parentfield, idx) {
+		// if given doc, fieldname only
+		if(arguments.length===2) {
+			parentfield = doctype;
+			doctype = frappe.meta.get_field(parent_doc.doctype, parentfield).options;
+		}
+
 		// create row doc
 		idx = idx ? idx - 0.1 : (parent_doc[parentfield] || []).length + 1;
 
@@ -294,4 +328,34 @@ $.extend(frappe.model, {
 			_map();
 		}
 	}
-})
+});
+
+frappe.create_routes = {};
+frappe.new_doc = function (doctype, opts) {
+	frappe.model.with_doctype(doctype, function() {
+		if(frappe.create_routes[doctype]) {
+			frappe.set_route(frappe.create_routes[doctype]);
+		} else {
+			frappe.ui.form.quick_entry(doctype, function(doc) {
+				//frappe.set_route('List', doctype);
+				var title = doc.name;
+				var title_field = frappe.get_meta(doc.doctype).title_field;
+				if (title_field) {
+					title = doc[title_field];
+				}
+
+				var route = frappe.get_route();
+				if(route && !(route[0]==='List' && route[1]===doc.doctype)) {
+					show_alert('<a href="#Form/' + doc.doctype + '/' + doc.name + '">'
+						+ __('{0} {1} created', [doc.doctype, strip_html(title)]) + '</a>');
+				}
+			});
+		}
+	});
+}
+
+// globals for backward compatibility
+window.new_doc = frappe.new_doc;
+window.newdoc = frappe.new_doc;
+
+

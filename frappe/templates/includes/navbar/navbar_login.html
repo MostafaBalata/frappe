@@ -3,7 +3,7 @@
 <li class="dropdown logged-in" id="website-post-login"
 	data-label="website-post-login" style="display: none">
 	<a href="#" class="dropdown-toggle" data-toggle="dropdown">
-		<span class="avatar avatar-small user-image-wrapper"><img class="user-image"/></span>
+		<span class="user-image-wrapper"></span>
 		<span class="visible-xs full-name"></span>
 	</a>
     <ul class="dropdown-menu" role="menu">
@@ -22,6 +22,6 @@
 	</ul>
 </li>
 {% if not hide_login %}
-<li class="btn-login-area"><a href="/login">{{ _("Login") }}</a></li>
+<li class="btn-login-area text-uppercase"><a href="/login">{{ _("Login") }}</a></li>
 {% endif %}
 {% endif %}

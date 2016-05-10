@@ -1,40 +1,38 @@
 {% extends "templates/web.html" %}
 
-{% block header %}
-<h1 itemprop="name headline" itemscope itemtype="http://schema.org/BlogPost">
-	{{ title }}
-</h1>
-{% endblock %}
-
-{% block breadcrumbs %}
-    {% include "templates/includes/breadcrumbs.html" %}
-{% endblock %}
-
 {% block page_content %}
-<article class="blog-content" itemscope itemtype="http://schema.org/BlogPost">
+<article class="blog-content" itemscope itemtype="http://schema.org/BlogPosting">
+	<meta  itemprop="datePublished" content="{{ frappe.format_date(published_on) }}"></meta>
+	<meta  itemprop="publisher" content="{{brand_html}}"></meta>
 	<!-- begin blog content -->
-	<p class="small text-muted blog-info">
-		<span itemprop="author">{{ blogger_info and blogger_info.full_name or full_name }}</span>,
-		<span itemprop="dateCreated">{{ updated }}</span>
-    </p>
+	<div class="blog-info">
+	<h1 itemprop="headline" class="blog-header">{{ title }}</h1>
+	<p class="post-by text-muted small">
+		<a href="/blog?by={{ blogger }}&by_name={{ full_name }}" class="no-decoration">By {{ blogger_info and blogger_info.full_name 		or full_name }}</a>
+		<i class="blog-dot"></i> {{ frappe.format_date(published_on) }} 
+		<i class="blog-dot"></i> <a href="/{{ parent_website_route }}" class="no-decoration">{{ blog_category }}</a> 
+		<i class="blog-dot"></i> {{ comment_text }}
+	</p>
+	</div>
 	<div itemprop="articleBody" class="longform blog-text">
 	{{ content }}
 	</div>
-    <p class="text-muted blog-category">
-        <a href="/{{ parent_website_route }}" class="no-decoration">
-            {{ _("This post is filed under {0}").format(blog_category) }}</a>
-    </p>
 	<!-- end blog content -->
 </article>
 {% if blogger_info %}
 {% include "templates/includes/blog/blogger.html" %}
 {% endif %}
 <div class="blog-comments">
-	<h2>Comments</h2>
 	{% include 'templates/includes/comments/comments.html' %}
 </div>
-
 <script>
     frappe.ready(function() { frappe.set_search_path("/blog"); })
 </script>
+{% endblock %}
+{% block style %}
+<style>
+.page-content {
+	padding-bottom: 0px;
+}
+</style>
 {% endblock %}

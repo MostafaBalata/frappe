@@ -8,7 +8,7 @@ import frappe, json
 import frappe.defaults
 import frappe.share
 import frappe.permissions
-from frappe.utils import flt, cint, getdate, get_datetime, get_time
+from frappe.utils import flt, cint, getdate, get_datetime, get_time, make_filter_tuple, get_filter
 from frappe import _
 from frappe.model import optional_fields
 
@@ -18,19 +18,40 @@ class DatabaseQuery(object):
 		self.tables = []
 		self.conditions = []
 		self.or_conditions = []
-		self.fields = ["`tab{0}`.`name`".format(doctype)]
+		self.fields = None
 		self.user = None
 		self.flags = frappe._dict()
 
 	def execute(self, query=None, fields=None, filters=None, or_filters=None,
 		docstatus=None, group_by=None, order_by=None, limit_start=False,
 		limit_page_length=None, as_list=False, with_childnames=False, debug=False,
-		ignore_permissions=False, user=None, with_comment_count=False):
+		ignore_permissions=False, user=None, with_comment_count=False,
+		join='left join', distinct=False, start=None, page_length=None, limit=None):
 		if not ignore_permissions and not frappe.has_permission(self.doctype, "read", user=user):
 			raise frappe.PermissionError, self.doctype
 
+		# fitlers and fields swappable
+		# its hard to remember what comes first
+		if isinstance(fields, dict):
+			# if fields is given as dict, its probably filters
+			self.filters = fields
+			fields = None
+
+		if self.fields and isinstance(filters, list) \
+			and len(filters) > 1 and isinstance(filters[0], basestring):
+			# if `filters` is a list of strings, its probably fields
+			self.fields = filters
+			filters = None
+
 		if fields:
 			self.fields = fields
+		else:
+			self.fields =  ["`tab{0}`.`name`".format(self.doctype)]
+
+		if start: limit_start = start
+		if page_length: limit_page_length = page_length
+		if limit: limit_page_length = limit
+
 		self.filters = filters or []
 		self.or_filters = or_filters or []
 		self.docstatus = docstatus or []
@@ -40,6 +61,8 @@ class DatabaseQuery(object):
 		self.limit_page_length = cint(limit_page_length) if limit_page_length else None
 		self.with_childnames = with_childnames
 		self.debug = debug
+		self.join = join
+		self.distinct = distinct
 		self.as_list = as_list
 		self.flags.ignore_permissions = ignore_permissions
 		self.user = user or frappe.session.user
@@ -61,6 +84,9 @@ class DatabaseQuery(object):
 		if args.conditions:
 			args.conditions = "where " + args.conditions
 
+		if self.distinct:
+			args.fields = 'distinct ' + args.fields
+
 		query = """select %(fields)s from %(tables)s %(conditions)s
 			%(group_by)s %(order_by)s %(limit)s""" % args
 
@@ -69,7 +95,7 @@ class DatabaseQuery(object):
 	def prepare_args(self):
 		self.parse_args()
 		self.extract_tables()
-		self.remove_user_tags()
+		self.set_optional_columns()
 		self.build_conditions()
 
 		args = frappe._dict()
@@ -83,8 +109,9 @@ class DatabaseQuery(object):
 		args.tables = self.tables[0]
 
 		# left join parent, child tables
-		for tname in self.tables[1:]:
-			args.tables += " left join " + tname + " on " + tname + '.parent = ' + self.tables[0] + '.name'
+		for child in self.tables[1:]:
+			args.tables += " {join} {child} on ({child}.parent = {main}.name)".format(join=self.join,
+				child=child, main=self.tables[0])
 
 		if self.grouped_or_conditions:
 			self.conditions.append("({0})".format(" or ".join(self.grouped_or_conditions)))
@@ -94,6 +121,8 @@ class DatabaseQuery(object):
 		if self.or_conditions:
 			args.conditions += (' or ' if args.conditions else "") + \
 				 ' or '.join(self.or_conditions)
+
+		self.set_field_tables()
 
 		args.fields = ', '.join(self.fields)
 
@@ -125,14 +154,8 @@ class DatabaseQuery(object):
 				fdict = filters
 				filters = []
 				for key, value in fdict.iteritems():
-					filters.append(self.make_filter_tuple(key, value))
+					filters.append(make_filter_tuple(self.doctype, key, value))
 			setattr(self, filter_name, filters)
-
-	def make_filter_tuple(self, key, value):
-		if isinstance(value, (list, tuple)):
-			return [self.doctype, key, value[0], value[1]]
-		else:
-			return [self.doctype, key, "=", value]
 
 	def extract_tables(self):
 		"""extract tables from fields"""
@@ -160,7 +183,15 @@ class DatabaseQuery(object):
 		if (not self.flags.ignore_permissions) and (not frappe.has_permission(doctype)):
 			raise frappe.PermissionError, doctype
 
-	def remove_user_tags(self):
+	def set_field_tables(self):
+		'''If there are more than one table, the fieldname must not be ambigous.
+		If the fieldname is not explicitly mentioned, set the default table'''
+		if len(self.tables) > 1:
+			for i, f in enumerate(self.fields):
+				if '.' not in f:
+					self.fields[i] = '{0}.{1}'.format(self.tables[0], f)
+
+	def set_optional_columns(self):
 		"""Removes optional columns like `_user_tags`, `_comments` etc. if not in table"""
 		columns = frappe.db.get_table_columns(self.doctype)
 
@@ -219,7 +250,7 @@ class DatabaseQuery(object):
 				ifnull(`tabDocType`.`fieldname`, fallback) operator "value"
 		"""
 
-		f = self.get_filter(f)
+		f = get_filter(self.doctype, f)
 
 		tname = ('`tab' + f.doctype + '`')
 		if not tname in self.tables:
@@ -270,50 +301,16 @@ class DatabaseQuery(object):
 			if isinstance(value, basestring):
 				value = '"{0}"'.format(frappe.db.escape(value, percent=False))
 
-			condition = 'ifnull({tname}.{fname}, {fallback}) {operator} {value}'.format(
-				tname=tname, fname=f.fieldname, fallback=fallback, operator=f.operator,
-				value=value)
+			if f.fieldname in ("creation", "modified"):
+				condition = '''ifnull(date_format({tname}.{fname},'%Y-%m-%d'), {fallback}) {operator} {value}'''.format(
+					tname=tname, fname=f.fieldname, fallback=fallback, operator=f.operator,
+					value=value)
+			else:
+				condition = 'ifnull({tname}.{fname}, {fallback}) {operator} {value}'.format(
+					tname=tname, fname=f.fieldname, fallback=fallback, operator=f.operator,
+					value=value)
 
 		return condition
-
-	def get_filter(self, f):
-		"""Returns a _dict like
-
-			{
-				"doctype": "DocType",
-				"fieldname": "fieldname",
-				"operator": "=",
-				"value": "value"
-			}
-
-		"""
-		if isinstance(f, dict):
-			key, value = f.items()[0]
-			f = self.make_filter_tuple(key, value)
-
-		if not isinstance(f, (list, tuple)):
-			frappe.throw("Filter must be a tuple or list (in a list)")
-
-		if len(f) == 3:
-			f = (self.doctype, f[0], f[1], f[2])
-
-		elif len(f) != 4:
-			frappe.throw("Filter must have 4 values (doctype, fieldname, operator, value): {0}".format(str(f)))
-
-		if not f[2]:
-			# if operator is missing
-			f[2] = "="
-
-		valid_operators = ("=", "!=", ">", "<", ">=", "<=", "like", "not like", "in", "not in")
-		if f[2] not in valid_operators:
-			frappe.throw("Operator must be one of {0}".format(", ".join(valid_operators)))
-
-		return frappe._dict({
-			"doctype": f[0],
-			"fieldname": f[1],
-			"operator": f[2],
-			"value": f[3]
-		})
 
 	def build_match_conditions(self, as_condition=True):
 		"""add match conditions if applicable"""
@@ -430,11 +427,19 @@ class DatabaseQuery(object):
 
 			if not group_function_without_group_by:
 				sort_field = sort_order = None
-				if meta.sort_field:
-					sort_field = meta.sort_field
-					sort_order = meta.sort_order
+				if meta.sort_field and ',' in meta.sort_field:
+					# multiple sort given in doctype definition
+					# Example:
+					# `idx desc, modified desc`
+					# will covert to
+					# `tabItem`.`idx` desc, `tabItem`.`modified` desc
+					args.order_by = ', '.join(['`tab{0}`.`{1}` {2}'.format(self.doctype,
+						f.split()[0].strip(), f.split()[1].strip()) for f in meta.sort_field.split(',')])
+				else:
+					sort_field = meta.sort_field or 'modified'
+					sort_order = (meta.sort_field and meta.sort_order) or 'desc'
 
-				args.order_by = "`tab{0}`.`{1}` {2}".format(self.doctype, sort_field or "modified", sort_order or "desc")
+					args.order_by = "`tab{0}`.`{1}` {2}".format(self.doctype, sort_field or "modified", sort_order or "desc")
 
 				# draft docs always on top
 				if meta.is_submittable:
@@ -459,24 +464,6 @@ class DatabaseQuery(object):
 			if not r.name:
 				continue
 
+			r._comment_count = 0
 			if "_comments" in r:
-				comment_count = len(json.loads(r._comments or "[]"))
-			else:
-				comment_count = cint(frappe.db.get_value("Communication",
-					filters={
-						"communication_type": "Comment",
-						"reference_doctype": self.doctype,
-						"reference_name": r.name,
-						"comment_type": "Comment"
-					},
-					fieldname="count(name)"))
-
-			communication_count = cint(frappe.db.get_value("Communication",
-				filters={
-					"communication_type": "Communication",
-					"reference_doctype": self.doctype,
-					"reference_name": r.name
-				},
-				fieldname="count(name)"))
-
-			r._comment_count = comment_count + communication_count
+				r._comment_count = len(json.loads(r._comments or "[]"))

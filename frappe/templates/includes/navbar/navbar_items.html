@@ -13,5 +13,6 @@
 	{% include "templates/includes/navbar/navbar_link.html" %}
 	{%- endif -%}
 	{%- endfor %}
+	{% block navbar_right_extension %}{% endblock %}
 	{% include "templates/includes/navbar/navbar_login.html" %}
 </ul>

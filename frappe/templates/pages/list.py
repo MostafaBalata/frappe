@@ -3,7 +3,7 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cint
+from frappe.utils import cint, quoted
 from frappe.website.render import resolve_path
 from frappe import _
 
@@ -27,8 +27,12 @@ def get(doctype, txt=None, limit_start=0, **kwargs):
 	limit_start = cint(limit_start)
 	limit_page_length = 20
 	next_start = limit_start + limit_page_length
+	
+	if not txt and frappe.form_dict.search:
+		txt = frappe.form_dict.search
+		del frappe.form_dict['search']
 
-	filters = prepare_filters(kwargs)
+	filters = prepare_filters(doctype, kwargs)
 	meta = frappe.get_meta(doctype)
 	list_context = get_list_context({}, doctype)
 
@@ -40,6 +44,8 @@ def get(doctype, txt=None, limit_start=0, **kwargs):
 	raw_result = _get_list(doctype=doctype, txt=txt, filters=filters,
 		limit_start=limit_start, limit_page_length=limit_page_length)
 
+	if not raw_result: return {"result": []}
+
 	show_more = (_get_list(doctype=doctype, txt=txt, filters=filters,
 		limit_start=next_start, limit_page_length=1) and True or False)
 
@@ -50,10 +56,13 @@ def get(doctype, txt=None, limit_start=0, **kwargs):
 	row_template = list_context.row_template or "templates/includes/list/row_template.html"
 	for doc in raw_result:
 		doc.doctype = doctype
-		new_context = { "doc": doc, "meta": meta }
+		new_context = frappe._dict(doc=doc, meta=meta)
+		new_context.doc = frappe.get_doc(doc)
+
 		if not frappe.flags.in_test:
 			new_context["pathname"] = frappe.local.request.path.strip("/ ")
 		new_context.update(list_context)
+		set_route(new_context)
 		rendered_row = frappe.render_template(row_template, new_context, is_path=True)
 		result.append(rendered_row)
 
@@ -63,19 +72,31 @@ def get(doctype, txt=None, limit_start=0, **kwargs):
 		"next_start": next_start
 	}
 
-def prepare_filters(kwargs):
-	filters = frappe._dict(kwargs)
+def set_route(context):
+	'''Set link for the list item'''
+	if context.is_web_form:
+		context.route = "{0}?name={1}".format(context.pathname, quoted(context.doc.name))
+	elif context.doc and getattr(context.doc, 'get_route', None):
+		context.route = context.doc.get_route()
+	else:
+		context.route = "{0}/{1}".format(context.pathname or quoted(context.doc.doctype),
+			quoted(context.doc.name))
 
+def prepare_filters(doctype, kwargs):
+	filters = frappe._dict(kwargs)
+	meta = frappe.get_meta(doctype)
+		
 	if filters.pathname:
 		# resolve additional filters from path
 		resolve_path(filters.pathname)
 		for key, val in frappe.local.form_dict.items():
-			if key in ("cmd", "pathname", "doctype", "txt", "limit_start"):
-				if key in filters:
-					del filters[key]
-
-			elif key not in filters:
+			if key not in filters:
 				filters[key] = val
+				
+	# filter the filters to include valid fields only
+	for fieldname, val in filters.items():
+		if not meta.has_field(fieldname):
+			del filters[fieldname]
 
 	if "is_web_form" in filters:
 		del filters["is_web_form"]
@@ -113,7 +134,8 @@ def get_list(doctype, txt, filters, limit_start, limit_page_length=20, ignore_pe
 	if txt:
 		if meta.search_fields:
 			for f in meta.get_search_fields():
-				or_filters.append([doctype, f.strip(), "like", "%" + txt + "%"])
+				if f == 'name' or meta.get_field(f).fieldtype in ('Data', 'Text', 'Small Text', 'Text Editor'):
+					or_filters.append([doctype, f, "like", "%" + txt + "%"])
 		else:
 			if isinstance(filters, dict):
 				filters["name"] = ("like", "%" + txt + "%")

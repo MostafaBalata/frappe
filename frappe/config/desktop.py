@@ -18,28 +18,31 @@ def get_data():
 			"icon": "octicon octicon-file-directory",
 			"label": _("File Manager"),
 			"link": "List/File",
-			"type": "list"
+			"type": "list",
+			"hidden": 1
 		},
 		{
 			"module_name": "Website",
 			"color": "#16a085",
 			"icon": "octicon octicon-globe",
-			"type": "module"
+			"type": "module",
+			"hidden": 1
 		},
 		{
 			"module_name": "Setup",
 			"color": "#bdc3c7",
 			"reverse": 1,
 			"icon": "octicon octicon-settings",
-			"type": "module"
+			"type": "module",
+			"hidden": 1
 		},
 		{
 			"module_name": "Core",
 			"label": _("Developer"),
 			"color": "#589494",
-			"icon": "icon-cog",
 			"icon": "octicon octicon-circuit-board",
 			"type": "module",
-			"system_manager": 1
-		}
+			"system_manager": 1,
+			"hidden": 1
+		},
 	]
