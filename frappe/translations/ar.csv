@@ -1489,7 +1489,7 @@ apps/frappe/frappe/core/doctype/file/test_file.py +81,Test_Folder,Test_Folder
 apps/frappe/frappe/website/doctype/web_form/web_form.py +156,You are not allowed to update this Web Form Document,لا يسمح لك بتحديث هذه الوثيقة نموذج ويب
 DocType: About Us Settings,About Us Settings,إعدادات صفحة من نحن
 DocType: Website Settings,Website Theme,موضوعات الموقع
-DocType: DocField,In List View,في عرض القائمة
+DocType: DocField,In List View,عرض في القائمة
 DocType: Email Account,Use TLS,استخدام TLS
 apps/frappe/frappe/email/smtp.py +30,Invalid login or password,تسجيل الدخول أو كلمة المرور غير صالحة
 apps/frappe/frappe/config/setup.py +227,Add custom javascript to forms.,إضافة جافا سكريبت الى (forms)
