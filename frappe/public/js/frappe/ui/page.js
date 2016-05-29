@@ -279,6 +279,7 @@ frappe.ui.Page = Class.extend({
 
 	// page::title
 	get_title_area: function() {
+		alert(this.$title_area)
 		return this.$title_area;
 	},
 

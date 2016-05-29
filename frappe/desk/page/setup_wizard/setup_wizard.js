@@ -250,7 +250,7 @@ function load_frappe_slides() {
 
 		fields: [
 			{ fieldname: "language", label: __("Select Your Language"), reqd:1,
-				fieldtype: "Select", "default": "english" },
+				fieldtype: "Select", "default": "العربية" },
 		],
 
 		onload: function(slide) {
@@ -270,11 +270,11 @@ function load_frappe_slides() {
 					frappe.wiz.welcome.setup_fields(slide);
 
 					var language_field = slide.get_field("language");
-					language_field.set_input(frappe.wiz.welcome.data.default_language || "العربية");
+					frappe.wiz.welcome.data.default_language = "العربية"
+					language_field.set_input(frappe.wiz.welcome.data.default_language);
 
 					if (!frappe.wiz._from_load_messages) {
 						language_field.$input.trigger("change");
-
 					}
 
 					delete frappe.wiz._from_load_messages;
@@ -347,6 +347,7 @@ function load_frappe_slides() {
 					frappe.wiz.region.data = data.message;
 					frappe.wiz.region.setup_fields(slide);
 					frappe.wiz.region.bind_events(slide);
+					$('[data-fieldname="country"]').val('Saudi Arabia').change();
 				}
 			});
 		},
@@ -363,10 +364,16 @@ function load_frappe_slides() {
 
 			slide.get_input("timezone").empty()
 				.add_options([""].concat(data.all_timezones));
-
+			console.log(data);
+//			data.default_country = "Saudi Arabia";
+			myslide = slide;
+			console.log(slide);
 			if (data.default_country) {
 				slide.set_input("country", data.default_country);
 			}
+			
+//			$('[data-fieldname="country"]').val('Saudi Arabia');
+//			slide.get_field('country').$input.trigger('change');
 		},
 
 		bind_events: function(slide) {
@@ -414,6 +421,9 @@ function load_frappe_slides() {
 			});
 		}
 	};
+
+	
+
 };
 
 frappe.wiz.on("before_load", function() {
@@ -421,5 +431,5 @@ frappe.wiz.on("before_load", function() {
 
 	// add welcome slide
 	frappe.wiz.add_slide(frappe.wiz.welcome);
-	frappe.wiz.add_slide(frappe.wiz.region);
+	frappe.wiz.add_slide(frappe.wiz.region);		
 });
