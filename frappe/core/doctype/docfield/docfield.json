@@ -94,6 +94,7 @@
    "bold": 0, 
    "collapsible": 0, 
    "default": "Gregorian", 
+   "depends_on": "eval:doc.fieldtype == 'Date'", 
    "fieldname": "calendar_type", 
    "fieldtype": "Select", 
    "hidden": 0, 
@@ -1020,5 +1021,6 @@
  "owner": "Administrator", 
  "permissions": [], 
  "read_only": 0, 
- "read_only_onload": 0
+ "read_only_onload": 0, 
+ "sort_order": "ASC"
 }
