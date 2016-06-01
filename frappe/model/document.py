@@ -461,6 +461,9 @@ class Document(BaseDocument):
 			elif self.docstatus==1:
 				self._action = "submit"
 				self.check_permission("submit")
+			elif self.docstatus == 2:
+				self._action = "cancel"
+				self.check_permission("cancel")
 			else:
 				raise frappe.DocstatusTransitionError, _("Cannot change docstatus from 0 to 2")
 
