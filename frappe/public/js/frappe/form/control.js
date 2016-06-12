@@ -763,7 +763,7 @@ frappe.ui.form.ControlAttach = frappe.ui.form.ControlData.extend({
 			var doc = this.doc.parent && frappe.model.get_doc(this.doc.parenttype, this.doc.parent) || this.doc;
 			if (doc.__islocal) {
 				frappe.msgprint(__("Please save the document before uploading."));
-				return;
+//				return;
 			}
 		}
 		if(!this.dialog) {

@@ -563,9 +563,13 @@ def delete_doc(doctype=None, name=None, force=0, ignore_doctypes=None, for_reloa
 	:param ignore_doctypes: Ignore if child table is one of these.
 	:param for_reload: Call `before_reload` trigger before deleting.
 	:param ignore_permissions: Ignore user permissions."""
-	import frappe.model.delete_doc
-	frappe.model.delete_doc.delete_doc(doctype, name, force, ignore_doctypes, for_reload,
-		ignore_permissions, flags)
+	print get_doc(doctype,name).owner ,session.user
+	if get_doc(doctype,name).owner == session.user or 'Administrator' in get_roles():
+		import frappe.model.delete_doc
+		frappe.model.delete_doc.delete_doc(doctype, name, force, ignore_doctypes, for_reload,
+			ignore_permissions, flags)
+	else:
+		throw(_("You aren't permitted to do that."))
 
 def delete_doc_if_exists(doctype, name, force=0):
 	"""Delete document if exists."""

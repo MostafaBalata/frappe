@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
+# @Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
 
 from __future__ import unicode_literals
@@ -12,11 +12,31 @@ class Workflow(Document):
 	def validate(self):
 		self.set_active()
 		self.create_custom_field_for_workflow_state()
+		self.create_custom_field_for_workflow_history()
 		self.update_default_workflow_status()
 		self.validate_docstatus()
 
 	def on_update(self):
 		frappe.clear_cache(doctype=self.document_type)
+
+	def create_custom_field_for_workflow_history(self):
+		frappe.clear_cache(doctype=self.document_type)
+		meta = frappe.get_meta(self.document_type)
+		if not meta.get_field("workflow_history"):
+			# create custom field
+			frappe.get_doc({
+				"doctype":"Custom Field",
+				"dt": self.document_type,
+				"__islocal": 1,
+				"fieldname": "workflow_history",
+				"label": "Workflow History",
+				"hidden": 0,
+				"allow_on_submit": 1,
+				"fieldtype": "Table",
+				"options": "Workflow History",
+			}).save()
+
+			frappe.msgprint(_("Created Custom Field {0} in {1}").format("workflow_history", self.document_type))
 
 	def create_custom_field_for_workflow_state(self):
 		frappe.clear_cache(doctype=self.document_type)
@@ -35,8 +55,7 @@ class Workflow(Document):
 				"options": "Workflow State",
 			}).save()
 
-			frappe.msgprint(_("Created Custom Field {0} in {1}").format(self.workflow_state_field,
-				self.document_type))
+			frappe.msgprint(_("Created Custom Field {0} in {1}").format(self.workflow_state_field, self.document_type))
 
 	def update_default_workflow_status(self):
 		docstatus_map = {}
