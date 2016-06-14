@@ -30,7 +30,7 @@ class Workflow(Document):
 				"__islocal": 1,
 				"fieldname": "workflow_history",
 				"label": "Workflow History",
-				"hidden": 0,
+				"hidden": 1,
 				"allow_on_submit": 1,
 				"fieldtype": "Table",
 				"options": "Workflow History",

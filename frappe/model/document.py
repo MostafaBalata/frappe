@@ -388,7 +388,6 @@ class Document(BaseDocument):
 
 		return False
 
-
 	def isDepartmentManager(self):
 		user = frappe.session.user
 		my_employee = frappe.get_doc('Employee',{'user_id' : user} )
@@ -415,6 +414,7 @@ class Document(BaseDocument):
 			return False
 
 		return False
+
 	def update_children(self):
 		# children
 
