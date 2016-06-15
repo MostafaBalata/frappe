@@ -71,6 +71,11 @@ class WebForm(WebsiteGenerator):
 		if not logged_in and frappe.form_dict.name:
 			frappe.throw(_("You need to be logged in to access this {0}.").format(self.doc_type), frappe.PermissionError)
 
+		if self.is_system_user:
+			user = frappe.get_doc('User', frappe.session.user )
+			if user.user_type != u"System User" or not logged_in:
+				frappe.throw(_("You need to be logged in to access this {0}.").format(self.doc_type), frappe.PermissionError)
+
 		if frappe.form_dict.name and not has_web_form_permission(self.doc_type, frappe.form_dict.name):
 			frappe.throw(_("You don't have the permissions to access this document"), frappe.PermissionError)
 
