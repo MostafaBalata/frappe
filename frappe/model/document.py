@@ -311,7 +311,7 @@ class Document(BaseDocument):
 					child.new_state = self.workflow_state
 					return
 				elif len(same_states) == 0:
-					frappe.throw("Its not Allowed")
+					frappe.throw(_("Its not Allowed"))
 				else:
 					current_transaction = None
 #					for i in range(0,len(same_states)):
@@ -326,7 +326,10 @@ class Document(BaseDocument):
 						print "****************************\n"
 
 						#Action
-						if str(prev_transaction[0]) == str(last_elem.new_state):
+						if last_elem.new_state is None:
+							current_transaction = transactions[0]
+						#Update
+						elif str(prev_transaction[0]) == str(last_elem.new_state):
 							current_transaction = prev_transaction
 						#Update
 						elif last_elem.new_state == self.workflow_state:
@@ -357,6 +360,7 @@ class Document(BaseDocument):
 						if fcall:
 							self.db_set("workflow_state", condition[1])
 							self.db_set("docstatus", "1") # submitted
+							self.run_method("before_submit")
 							self.run_method("on_submit")
 					except AttributeError as e:
 						frappe.throw("Check workflow transaction condition :"+ str(e))
@@ -382,6 +386,7 @@ class Document(BaseDocument):
 	def isAvailableBalance(self):
 #		frappe.throw(self.leave_balance > self.total_leave_days)
 		if self.leave_balance > self.total_leave_days:
+			self.status = "Approved"
 			return True
 		else:
 			self.leave_type = "Leave Without Salary"
@@ -771,6 +776,7 @@ class Document(BaseDocument):
 			self.run_method("before_cancel")
 		elif self._action=="update_after_submit":
 			self.run_method("before_update_after_submit")
+
 
 	def run_post_save_methods(self):
 		"""Run standard methods after `INSERT` or `UPDATE`. Standard Methods are:
