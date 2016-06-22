@@ -317,16 +317,20 @@ class Document(BaseDocument):
 #					for i in range(0,len(same_states)):
 					if len(same_states):
 						i = 0
+
+						length = len(self.get('workflow_history'))-1 if len(self.get('workflow_history')) else 0
+						print self.get('workflow_history')
 						prev_transaction = transactions[same_states[i] - 1]
-						last_elem = self.get('workflow_history')[len(self.get('workflow_history'))-1]
+
+						last_elem = self.get('workflow_history')[length] if length else None
 
 						print "****************************\n"
 						print "Last Transaction and last history"
-						print prev_transaction[0] , last_elem.new_state
+#						print prev_transaction[0] , last_elem['new_state']
 						print "****************************\n"
 
 						#Action
-						if last_elem.new_state is None:
+						if last_elem is None or last_elem['new_state'] is None:
 							current_transaction = transactions[0]
 						#Update
 						elif str(prev_transaction[0]) == str(last_elem.new_state):

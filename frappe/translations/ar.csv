@@ -727,7 +727,7 @@ apps/frappe/frappe/core/doctype/communication/communication.py +78,Sorry! You ca
 DocType: Website Theme,Style using CSS,أسلوب باستخدام CSS
 DocType: Async Task,Reference DocType,إشارة DOCTYPE
 DocType: User,System User,نظام المستخدم
-DocType: Report,Is Standard,هو معيار
+DocType: Report,Is Standard,معياري
 apps/frappe/frappe/custom/doctype/customize_form/customize_form.js +218,Specify a default value,تحديد قيمة افتراضية
 DocType: Website Settings,FavIcon,فافيكون
 DocType: Workflow State,minus-sign,علامة ناقص
@@ -1486,7 +1486,7 @@ apps/frappe/frappe/templates/emails/password_reset.html +6,Thank you,شكرا
 apps/frappe/frappe/public/js/frappe/form/save.js +11,Saving,حفظ
 DocType: Print Settings,Print Style Preview,معاينة قبل الطباعة ستايل
 apps/frappe/frappe/core/doctype/file/test_file.py +81,Test_Folder,Test_Folder
-apps/frappe/frappe/website/doctype/web_form/web_form.py +156,You are not allowed to update this Web Form Document,لا يسمح لك بتحديث هذه الوثيقة نموذج ويب
+apps/frappe/frappe/website/doctype/web_form/web_form.py +156,You are not allowed to update this Web Form Document,لا يسمح لك بتعديل النموذج بعد الارسال.
 DocType: About Us Settings,About Us Settings,إعدادات صفحة من نحن
 DocType: Website Settings,Website Theme,موضوعات الموقع
 DocType: DocField,In List View,عرض في القائمة
@@ -1664,7 +1664,7 @@ apps/frappe/frappe/core/page/permission_manager/permission_manager.js +474,Did n
 DocType: ToDo,ToDo,قائمة المهام
 DocType: DocField,No Copy,اي نسخة
 DocType: Workflow State,qrcode,qrcode
-DocType: Web Form,Breadcrumbs,فتات الخبز
+DocType: Web Form,Breadcrumbs,التسلسل
 apps/frappe/frappe/core/doctype/doctype/doctype.py +470,If Owner,إذا المالك
 apps/frappe/frappe/website/doctype/web_form/web_form.py +71,You need to be logged in to access this {0}.,تحتاج إلى تسجيل الدخول للوصول إلى هذه {0}.
 apps/frappe/frappe/public/js/frappe/form/footer/assign_to.js +167,Complete By,الكامل من جانب
@@ -1796,7 +1796,7 @@ apps/frappe/frappe/website/doctype/website_settings/website_settings.py +34,{0} 
 DocType: Event,Event Type,نوع الحدث
 DocType: User,Last Known Versions,المعروفة إصدارات مشاركة
 apps/frappe/frappe/config/setup.py +128,Add / Manage Email Accounts.,إضافة / إدارة حسابات البريد الإلكتروني.
-DocType: Blog Category,Published,نشرت
+DocType: Blog Category,Published,منشور
 apps/frappe/frappe/templates/emails/auto_reply.html +1,Thank you for your email,شكرا لك على بريدك الالكتروني
 DocType: DocField,Small Text,نص صغير
 apps/frappe/frappe/core/doctype/user/user.py +525,Administrator accessed {0} on {1} via IP Address {2}.,الوصول إلى المسؤول {0} على {1} عن طريق IP عنوان {2}.
