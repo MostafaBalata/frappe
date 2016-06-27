@@ -272,13 +272,11 @@ class Document(BaseDocument):
 				""".format(workflow_name = get_workflow_name(self.doctype)))
 				frappe.clear_cache(doctype=self.doctype)
 
+
 				transactions = list(transactions)
 				print "****************************\n"
 				print "History"
 				print self.get('workflow_history')
-				import  pprint
-				for last_elem in self.get('workflow_history'):
-					pprint .pprint(last_elem.name)
 				print "****************************\n"
 
 				print "****************************\n"
@@ -318,19 +316,19 @@ class Document(BaseDocument):
 					if len(same_states):
 						i = 0
 
-						length = len(self.get('workflow_history'))-1 if len(self.get('workflow_history')) else 0
+						length = len(self.get('workflow_history'))-1 if len(self.get('workflow_history')) > 0 else 0
 						print self.get('workflow_history')
-						prev_transaction = transactions[same_states[i] - 1]
-
-						last_elem = self.get('workflow_history')[length] if length else None
-
+						prev_transaction = transactions[ same_states[i] - 1]
+						print length
+						last_elem = self.get('workflow_history')[length] #if length >= 0 else None
+						print last_elem
 						print "****************************\n"
 						print "Last Transaction and last history"
-#						print prev_transaction[0] , last_elem['new_state']
+						print prev_transaction[0] , last_elem.name
 						print "****************************\n"
 
 						#Action
-						if last_elem is None or last_elem['new_state'] is None:
+						if last_elem is None or last_elem.new_state is None:
 							current_transaction = transactions[0]
 						#Update
 						elif str(prev_transaction[0]) == str(last_elem.new_state):
@@ -362,9 +360,9 @@ class Document(BaseDocument):
 						fcall = eval("self."+condition[0])() # Function Name
 #						frappe.msgprint(fcall)
 						if fcall:
+							self.run_method("before_submit")
 							self.db_set("workflow_state", condition[1])
 							self.db_set("docstatus", "1") # submitted
-							self.run_method("before_submit")
 							self.run_method("on_submit")
 					except AttributeError as e:
 						frappe.throw("Check workflow transaction condition :"+ str(e))
@@ -382,7 +380,8 @@ class Document(BaseDocument):
 
 	def isNotModified(self):
 		last_elem = self.get('workflow_history')[len(self.get('workflow_history'))-1]
-		if last_elem.new_state == "Pending Account Manager" and last_elem.action == "update":
+#		if last_elem.new_state == "Pending Account Manager" and last_elem.action == "update":
+		if last_elem.action == "update":
 			return False
 		else:
 			return True

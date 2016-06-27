@@ -977,7 +977,7 @@ DocType: Currency,"1 Currency = [?] Fraction
 For e.g. 1 USD = 100 Cent",وحدة واحدة من العملة = ؟ أجزاء صغيرة من العملة. على سبيل المثال : 1 ريال سعودي = 100 هللة.
 apps/frappe/frappe/core/page/permission_manager/permission_manager.js +370,Add New Permission Rule,إضافة قاعدة صلاحيات جديدة
 apps/frappe/frappe/public/js/frappe/form/link_selector.js +25,You can use wildcard %,يمكنك استخدام حرف البدل٪
-apps/frappe/frappe/desk/page/activity/activity.js +203,Mar,شوه
+apps/frappe/frappe/desk/page/activity/activity.js +203,Mar,مارس
 apps/frappe/frappe/public/js/frappe/upload.js +131,"Only image extensions (.gif, .jpg, .jpeg, .tiff, .png, .svg) allowed",فقط ملحقات الصورة (gif أو jpg أو JPEG أو .tiff، بابوا نيو غينيا، زمر .svg) يسمح
 DocType: Customize Form,"Fields separated by comma (,) will be included in the ""Search By"" list of Search dialog box",حقول مفصولة بفواصل ستدرج (،) في &quot;البحث عن طريق&quot; قائمة مربع الحوار بحث ل
 apps/frappe/frappe/website/doctype/website_theme/website_theme.py +35,Please Duplicate this Website Theme to customize.,يرجى تكرار هذا موضوع الموقع للتخصيص.
