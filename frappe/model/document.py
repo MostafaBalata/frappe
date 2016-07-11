@@ -297,7 +297,7 @@ class Document(BaseDocument):
 				print same_states , self.workflow_state
 				print "****************************\n"
 
-				if self._action == "submit":
+				if self._action == "submit" or self._action == "update_after_submit":
 					current_transaction = transactions[len(transactions)-1]
 				elif self._action == "cancel":
 					child = self.append('workflow_history', {})
@@ -308,6 +308,7 @@ class Document(BaseDocument):
 					child.new_state = self.workflow_state
 					return
 				elif len(same_states) == 0:
+					#Check if last status
 					frappe.throw(_("Its not Allowed"))
 				else:
 #					frappe.msgprint("2")
