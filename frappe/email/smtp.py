@@ -23,6 +23,7 @@ def send(email, append_to=None):
 	try:
 		smtpserver = SMTPServer(append_to=append_to)
 		smtpserver.replace_sender_in_email(email)
+		print "Email Email Email Email Email Email Email Email Email Email Email "
 		smtpserver.sess.sendmail(email.sender, email.recipients + (email.cc or []),
 			email.as_string())
 

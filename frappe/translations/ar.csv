@@ -463,7 +463,7 @@ apps/frappe/frappe/config/setup.py +176,"States for workflow (e.g. Draft, Approv
 apps/frappe/frappe/public/js/frappe/form/link_selector.js +136,Set Quantity,ضبط الكمية
 DocType: User,Unsubscribed,إلغاء اشتراكك
 ,Data Import Tool,أداة استيراد البيانات
-apps/frappe/frappe/core/doctype/user/user.py +425,Registration Details Emailed.,تفاصيل التسجيل عبر البريد الالكتروني.
+apps/frappe/frappe/core/doctype/user/user.py +425,Registration Details Emailed.,تم التسجيل بنجاح، يرجى تفقد البريد الإلكتروني لمتابعة التسجيل.
 DocType: Workflow State,Stop,توقف
 DocType: Top Bar Item,Link to the page you want to open. Leave blank if you want to make it a group parent.,الرابط إلى الصفحة التي تريد فتحها. ترك فارغا إذا كنت تريد أن تجعل من أحد الوالدين المجموعة.
 DocType: DocType,Is Single,هو واحدة

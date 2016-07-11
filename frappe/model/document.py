@@ -263,15 +263,14 @@ class Document(BaseDocument):
 			self.previous_doc = frappe.db.get_value(self.doctype, self.name, "*", as_dict=True)
 		else:
 			self.previous_doc = None
-
+		self._current_action = self._action
 		if get_workflow_name(self.doctype) is not None:
 			if not self.is_new():
-
+#				frappe.msgprint("1")
 				transactions = frappe.db.sql("""
 				SELECT state,next_state, thecondition ,idx ,`action` , allowed FROM `tabWorkflow Transition` WHERE `parent` = '{workflow_name}' and `action` = 'Approve'  order by `idx` asc
 				""".format(workflow_name = get_workflow_name(self.doctype)))
 				frappe.clear_cache(doctype=self.doctype)
-
 
 				transactions = list(transactions)
 				print "****************************\n"
@@ -311,11 +310,12 @@ class Document(BaseDocument):
 				elif len(same_states) == 0:
 					frappe.throw(_("Its not Allowed"))
 				else:
+#					frappe.msgprint("2")
 					current_transaction = None
 #					for i in range(0,len(same_states)):
 					if len(same_states):
 						i = 0
-
+#						frappe.msgprint("3")
 						length = len(self.get('workflow_history'))-1 if len(self.get('workflow_history')) > 0 else 0
 						print self.get('workflow_history')
 						prev_transaction = transactions[ same_states[i] - 1]
@@ -336,7 +336,7 @@ class Document(BaseDocument):
 						#Update
 						elif last_elem.new_state == self.workflow_state:
 							current_transaction = transactions[same_states[i]]
-							self._action= "update"
+							self._current_action = "update"
 
 				if current_transaction is None:
 					frappe.throw("There's no workflow state, Refresh the page")
@@ -353,9 +353,10 @@ class Document(BaseDocument):
 					frappe.throw(_("You are not Allowed ."))
 
 #				print current_transaction[2]
-				if current_transaction[2] is not None and self._action != "update":
+				if current_transaction[2] is not None and self._current_action != "update":
 					condition = str(current_transaction[2]).split(":")
 					print condition
+#					frappe.msgprint("update")
 					try:
 						fcall = eval("self."+condition[0])() # Function Name
 #						frappe.msgprint(fcall)
@@ -366,18 +367,17 @@ class Document(BaseDocument):
 							self.run_method("on_submit")
 					except AttributeError as e:
 						frappe.throw("Check workflow transaction condition :"+ str(e))
-
 			else:
 				pass
 
-
+#			frappe.msgprint("before add to history")
 			child = self.append('workflow_history', {})
 			child.user = frappe.session.user
-			child.action = self._action
+			child.action = self._current_action
 			if self.previous_doc and 'workflow_state' in self.previous_doc:
 				child.previous_state = self.previous_doc['workflow_state']
 			child.new_state = self.workflow_state
-
+#			frappe.msgprint("end")
 	def isNotModified(self):
 		last_elem = self.get('workflow_history')[len(self.get('workflow_history'))-1]
 #		if last_elem.new_state == "Pending Account Manager" and last_elem.action == "update":
@@ -765,10 +765,11 @@ class Document(BaseDocument):
 
 		Will also update title_field if set"""
 		self.workflow_manager()
+#		frappe.msgprint("Action: "+self._action)
 		self.set_title_field()
 		if self.flags.ignore_validate:
 			return
-
+#		frappe.msgprint("continue")
 		if self._action=="save":
 			self.run_method("validate")
 			self.run_method("before_save")
