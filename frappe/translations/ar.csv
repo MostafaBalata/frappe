@@ -2025,3 +2025,8 @@ apps/frappe/frappe/templates/emails/new_user.html +4,Your login id is,معرف �
 DocType: Dropbox Backup,Send Notifications To,إرسال إشعارات إلى
 DocType: DocField,Ignore User Permissions,تجاهل أذونات المستخدم
 apps/frappe/frappe/public/js/frappe/form/grid_form.html +14,Remove,حذف
+apps/frappe/frappe/model/document.py +312,Its not Allowed,عملية غير مسموح بها 
+apps/frappe/frappe/model/document.py +348,You are not permitted.,لا يوجد لك صلاحية 
+apps/frappe/frappe/model/document.py +351,You are not Allowed.,لا يوجد لك صلاحية 
+apps/frappe/frappe/model/document.py +354,You are not permitted.,غير مصرح لك بهذه العملية
+apps/frappe/frappe/model/document.py +354,Check workflow transaction condition :,تاكد من شرط العملية في سير العمليات :
