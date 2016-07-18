@@ -16,6 +16,9 @@ frappe.form.formatters = {
 	Data: function(value) {
 		return value==null ? "" : value;
 	},
+	DateHijri: function(value) {
+		return value==null ? "" : value;
+	},
 	Select: function(value) {
 		return __(frappe.form.formatters["Data"](value));
 	},

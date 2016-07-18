@@ -31,6 +31,7 @@ type_map = {
 	,'Code':		('longtext', '')
 	,'Text Editor':	('longtext', '')
 	,'Date':		('date', '')
+	,'Date Hijri':	('varchar', '20')
 	,'Datetime':	('datetime', '6')
 	,'Time':		('time', '6')
 	,'Text':		('text', '')
