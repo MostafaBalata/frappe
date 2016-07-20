@@ -578,7 +578,7 @@ frappe.ui.form.ControlDate = frappe.ui.form.ControlData.extend({
 		return callback(value);
 	}
 })
-
+frappe.ui.form.ControlDateHijri =frappe.ui.form.ControlDate;
 import_timepicker = function() {
 	frappe.require("assets/frappe/js/lib/jquery/jquery.ui.slider.min.js");
 	frappe.require("assets/frappe/js/lib/jquery/jquery.ui.sliderAccess.js");

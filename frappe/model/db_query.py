@@ -245,6 +245,10 @@ class DatabaseQuery(object):
 				value = getdate(f.value).strftime("%Y-%m-%d")
 				fallback = "'0000-00-00'"
 
+			elif df and df.fieldtype=="Date Hijri":
+				value = getdate(f.value).strftime("%Y-%m-%d")
+				fallback = "'0000-00-00'"
+
 			elif df and df.fieldtype=="Datetime":
 				value = get_datetime(f.value).strftime("%Y-%m-%d %H:%M:%S.%f")
 				fallback = "'0000-00-00 00:00:00'"
