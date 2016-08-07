@@ -378,6 +378,27 @@ class Document(BaseDocument):
 			if self.previous_doc and 'workflow_state' in self.previous_doc:
 				child.previous_state = self.previous_doc['workflow_state']
 			child.new_state = self.workflow_state
+
+			from frappe.utils import get_link_to_form , get_url , get_fullname
+
+			#frappe.get_doc("Workflow Transition" , "" , "allowed")
+			owner_employee = frappe.get_doc('Employee',{'name' : self.employee } )
+			#if self.workflow_state =  or
+			owner_user = frappe.db.get_value("User", owner_employee.user_id, "email")
+
+			print owner_user
+			print get_link_to_form(self.doctype , self.name)
+
+			frappe.sendmail(
+				recipients=(owner_user),
+				sender= frappe.db.get_value("User", frappe.session.user, "email"),
+				subject = "New Message from " + get_fullname(frappe.session.user),
+				message = frappe.get_template("templates/emails/new_message.html").render({
+					"from": get_fullname(frappe.session.user),
+					"message": "Hello This is me",
+					"link": get_link_to_form(self.doctype , self.name)
+			}))
+
 #			frappe.msgprint("end")
 	def isNotModified(self):
 		last_elem = self.get('workflow_history')[len(self.get('workflow_history'))-1]
@@ -400,9 +421,7 @@ class Document(BaseDocument):
 	def isDepartmentManager(self):
 		user = frappe.session.user
 		my_employee = frappe.get_doc('Employee',{'user_id' : user} )
-
 		owner_employee = frappe.get_doc('Employee',{'name' : self.employee } )
-
 		owner_department = owner_employee.department
 
 		# Check if the applied user is manager.
@@ -444,6 +463,36 @@ class Document(BaseDocument):
 				else:
 					frappe.db.sql("""delete from `tab%s` where parent=%s and parenttype=%s""" \
 						% (df.options, '%s', '%s'), (self.name, self.doctype))
+
+	def update_child_table(self, fieldname, df=None):
+		'''sync child table for given fieldname'''
+		rows = []
+		if not df:
+			df = self.meta.get_field(fieldname)
+
+		for d in self.get(df.fieldname):
+			d.db_update()
+			rows.append(d.name)
+
+		if df.options in (self.flags.ignore_children_type or []):
+			# do not delete rows for this because of flags
+			# hack for docperm :(
+			return
+
+		if rows:
+			# delete rows that do not match the ones in the
+			# document
+			frappe.db.sql("""delete from `tab{0}` where parent=%s
+				and parenttype=%s and parentfield=%s
+				and name not in ({1})""".format(df.options, ','.join(['%s'] * len(rows))),
+					[self.name, self.doctype, fieldname] + rows)
+		else:
+			# no rows found, delete all rows
+			frappe.db.sql("""delete from `tab{0}` where parent=%s
+				and parenttype=%s and parentfield=%s""".format(df.options),
+				(self.name, self.doctype, fieldname))
+
+
 
 	def set_new_name(self):
 		"""Calls `frappe.naming.se_new_name` for parent and child docs."""
