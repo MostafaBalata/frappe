@@ -5,7 +5,7 @@
 
 // parent, title, single_column
 // standard page with page
-
+__('Approve') , __('Reject') ,__('Pending Direct Manager') ,__('Pending Department Manager'),__('Pending Employee'),__('Pending Account Manager')
 frappe.ui.make_app_page = function(opts) {
 	/* help: make a standard page layout with a toolbar and title */
 	/* options: [
@@ -94,7 +94,7 @@ frappe.ui.Page = Class.extend({
 	},
 
 	set_indicator: function(label, color) {
-		this.clear_indicator().removeClass("hide").html(label).addClass(color);
+		this.clear_indicator().removeClass("hide").html(__(label)).addClass(color);
 	},
 
 	add_action_icon: function(icon, click) {
@@ -209,7 +209,7 @@ frappe.ui.Page = Class.extend({
 	add_dropdown_item: function(label, click, standard, parent) {
 		parent.parent().removeClass("hide");
 
-		var $li = $('<li><a class="grey-link">'+ label +'</a><li>'),
+		var $li = $('<li><a class="grey-link">'+ __(label) + '</a><li>'),
 			$link = $li.find("a").on("click", click);
 
 		if(standard===true) {
@@ -290,6 +290,7 @@ frappe.ui.Page = Class.extend({
 
 	// page::title
 	get_title_area: function() {
+		alert(this.$title_area)
 		return this.$title_area;
 	},
 

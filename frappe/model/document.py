@@ -265,6 +265,193 @@ class Document(BaseDocument):
 
 		return self
 
+
+	def workflow_manager(self):
+		from frappe.model.workflow import get_workflow_name
+		if not getattr(self, "__islocal", None) and frappe.db.exists(self.doctype, self.name):
+			self.previous_doc = frappe.db.get_value(self.doctype, self.name, "*", as_dict=True)
+		else:
+			self.previous_doc = None
+		self._current_action = self._action
+		if get_workflow_name(self.doctype) is not None:
+			if not self.is_new():
+#				frappe.msgprint("1")
+				transactions = frappe.db.sql("""
+				SELECT state,next_state, thecondition ,idx ,`action` , allowed FROM `tabWorkflow Transition` WHERE `parent` = '{workflow_name}' and `action` = 'Approve'  order by `idx` asc
+				""".format(workflow_name = get_workflow_name(self.doctype)))
+				frappe.clear_cache(doctype=self.doctype)
+
+				transactions = list(transactions)
+				print "****************************\n"
+				print "History"
+				print self.get('workflow_history')
+				print "****************************\n"
+
+				print "****************************\n"
+				print "Transactions"
+				print transactions
+				print "****************************\n"
+
+				same_states = []
+
+				transactions_index = 0
+				for i in range(0,len(transactions)):
+
+					if self.workflow_state == transactions[i][0]:
+						same_states.append(i)
+					transactions_index +=1
+
+				print "****************************\n"
+				print "Same States"
+				print same_states , self.workflow_state
+				print "****************************\n"
+
+				if self._action == "submit" or self._action == "update_after_submit":
+					current_transaction = transactions[len(transactions)-1]
+				elif self._action == "cancel":
+					child = self.append('workflow_history', {})
+					child.user = frappe.session.user
+					child.action = self._action
+					if self.previous_doc and 'workflow_state' in self.previous_doc:
+						child.previous_state = self.previous_doc['workflow_state']
+					child.new_state = self.workflow_state
+					return
+				elif len(same_states) == 0:
+					#Check if last status
+					frappe.throw(_("Its not Allowed"))
+				else:
+#					frappe.msgprint("2")
+					current_transaction = None
+#					for i in range(0,len(same_states)):
+					if len(same_states):
+						i = 0
+#						frappe.msgprint("3")
+						length = len(self.get('workflow_history'))-1 if len(self.get('workflow_history')) > 0 else 0
+						print self.get('workflow_history')
+						prev_transaction = transactions[ same_states[i] - 1]
+						print length
+						last_elem = self.get('workflow_history')[length] #if length >= 0 else None
+						print last_elem
+						print "****************************\n"
+						print "Last Transaction and last history"
+						print prev_transaction[0] , last_elem.name
+						print "****************************\n"
+
+						#Action
+						if last_elem is None or last_elem.new_state is None:
+							current_transaction = transactions[0]
+						#Update
+						elif str(prev_transaction[0]) == str(last_elem.new_state):
+							current_transaction = prev_transaction
+						#Update
+						elif last_elem.new_state == self.workflow_state:
+							current_transaction = transactions[same_states[i]]
+							self._current_action = "update"
+
+				if current_transaction is None:
+					frappe.throw("There's no workflow state, Refresh the page")
+
+				# Check is allowed
+				if current_transaction[5] == "Department Manager":
+					if not self.isDepartmentManager():
+						frappe.throw(_("You are not permitted."))
+				if current_transaction[5] == "Employee":
+					if not self.isAllowed():
+						frappe.throw(_("You are not Allowed."))
+
+				if current_transaction[5] not in frappe.get_roles(frappe.session.user):
+					frappe.throw(_("You are not Allowed ."))
+
+#				print current_transaction[2]
+				if current_transaction[2] is not None and self._current_action != "update":
+					condition = str(current_transaction[2]).split(":")
+					print condition
+#					frappe.msgprint("update")
+					try:
+						fcall = eval("self."+condition[0])() # Function Name
+#						frappe.msgprint(fcall)
+						if fcall:
+							self.run_method("before_submit")
+							self.db_set("workflow_state", condition[1])
+							self.db_set("docstatus", "1") # submitted
+							self.run_method("on_submit")
+					except AttributeError as e:
+						frappe.throw("Check workflow transaction condition :"+ str(e))
+			else:
+				pass
+
+#			frappe.msgprint("before add to history")
+			child = self.append('workflow_history', {})
+			child.user = frappe.session.user
+			child.action = self._current_action
+			if self.previous_doc and 'workflow_state' in self.previous_doc:
+				child.previous_state = self.previous_doc['workflow_state']
+			child.new_state = self.workflow_state
+
+			from frappe.utils import get_link_to_form , get_url , get_fullname
+
+			#frappe.get_doc("Workflow Transition" , "" , "allowed")
+			owner_employee = frappe.get_doc('Employee',{'name' : self.employee } )
+			#if self.workflow_state =  or
+			owner_user = frappe.db.get_value("User", owner_employee.user_id, "email")
+
+			print owner_user
+			print get_link_to_form(self.doctype , self.name)
+
+			frappe.sendmail(
+				recipients=(owner_user),
+				sender= frappe.db.get_value("User", frappe.session.user, "email"),
+				subject = "New Message from " + get_fullname(frappe.session.user),
+				message = frappe.get_template("templates/emails/new_message.html").render({
+					"from": get_fullname(frappe.session.user),
+					"message": "Hello This is me",
+					"link": get_link_to_form(self.doctype , self.name)
+			}))
+
+#			frappe.msgprint("end")
+	def isNotModified(self):
+		last_elem = self.get('workflow_history')[len(self.get('workflow_history'))-1]
+#		if last_elem.new_state == "Pending Account Manager" and last_elem.action == "update":
+		if last_elem.action == "update":
+			return False
+		else:
+			return True
+
+	def isAvailableBalance(self):
+#		frappe.throw(self.leave_balance > self.total_leave_days)
+		if self.leave_balance > self.total_leave_days:
+			self.status = "Approved"
+			return True
+		else:
+			self.leave_type = "Leave Without Salary"
+
+		return False
+
+	def isDepartmentManager(self):
+		user = frappe.session.user
+		my_employee = frappe.get_doc('Employee',{'user_id' : user} )
+		owner_employee = frappe.get_doc('Employee',{'name' : self.employee } )
+		owner_department = owner_employee.department
+
+		# Check if the applied user is manager.
+		if u'Department Manager' in frappe.get_roles(owner_employee.user_id):
+			owner_department_details = frappe.get_doc('Department',{'name' : owner_department} )
+			parent_department = owner_department_details.parent_department
+			return parent_department == my_employee.department and u'Department Manager' in frappe.get_roles(user)
+
+		return u'Department Manager' in frappe.get_roles(user) and owner_employee.department == my_employee.department
+
+	def isAllowed(self , allowed_role = u'HR User'):
+		user = frappe.session.user
+
+		if self.owner == user:
+			return True
+
+		if allowed_role in frappe.get_roles(user):
+			return False
+
+		return False
+
 	def update_children(self):
 		'''update child tables'''
 		for df in self.meta.get_table_fields():
@@ -297,6 +484,8 @@ class Document(BaseDocument):
 			frappe.db.sql("""delete from `tab{0}` where parent=%s
 				and parenttype=%s and parentfield=%s""".format(df.options),
 				(self.name, self.doctype, fieldname))
+
+
 
 	def set_new_name(self):
 		"""Calls `frappe.naming.se_new_name` for parent and child docs."""
@@ -496,6 +685,9 @@ class Document(BaseDocument):
 			elif self.docstatus==1:
 				self._action = "submit"
 				self.check_permission("submit")
+			elif self.docstatus == 2:
+				self._action = "cancel"
+				self.check_permission("cancel")
 			else:
 				raise frappe.DocstatusTransitionError, _("Cannot change docstatus from 0 to 2")
 
@@ -628,6 +820,8 @@ class Document(BaseDocument):
 		- `before_update_after_submit` for **Update after Submit**
 
 		Will also update title_field if set"""
+		self.workflow_manager()
+#		frappe.msgprint("Action: "+self._action)
 		self.set_title_field()
 		self.reset_seen()
 
@@ -644,6 +838,7 @@ class Document(BaseDocument):
 			self.run_method("before_cancel")
 		elif self._action=="update_after_submit":
 			self.run_method("before_update_after_submit")
+
 
 	def run_post_save_methods(self):
 		"""Run standard methods after `INSERT` or `UPDATE`. Standard Methods are:

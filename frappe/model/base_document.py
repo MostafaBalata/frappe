@@ -178,7 +178,7 @@ class BaseDocument(object):
 		d = frappe._dict()
 		for fieldname in self.meta.get_valid_columns():
 			d[fieldname] = self.get(fieldname)
-			
+
 			# if no need for sanitization and value is None, continue
 			if not sanitize and d[fieldname] is None:
 				continue
@@ -192,9 +192,10 @@ class BaseDocument(object):
 					d[fieldname] = cint(d[fieldname])
 
 				elif df.fieldtype in ("Currency", "Float", "Percent") and not isinstance(d[fieldname], float):
+
 					d[fieldname] = flt(d[fieldname])
 
-				elif df.fieldtype in ("Datetime", "Date") and d[fieldname]=="":
+				elif df.fieldtype in ("Datetime", "Date", "Date Hijri") and d[fieldname]=="":
 					d[fieldname] = None
 
 				elif df.get("unique") and cstr(d[fieldname]).strip()=="":
@@ -659,6 +660,9 @@ class BaseDocument(object):
 
 		elif df.fieldtype == "Date":
 			val = getdate(val)
+
+		elif df.fieldtype == "Date Hijri":
+			val = cstr(val)
 
 		elif df.fieldtype == "Datetime":
 			val = get_datetime(val)

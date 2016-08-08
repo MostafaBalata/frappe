@@ -242,7 +242,7 @@ function load_frappe_slides() {
 
 		fields: [
 			{ fieldname: "language", label: __("Select Your Language"), reqd:1,
-				fieldtype: "Select", "default": "english" },
+				fieldtype: "Select", "default": "العربية" },
 		],
 
 		onload: function(slide) {
@@ -263,7 +263,8 @@ function load_frappe_slides() {
 					frappe.wiz.welcome.setup_fields(slide);
 
 					var language_field = slide.get_field("language");
-					language_field.set_input(frappe.wiz.welcome.data.default_language || "english");
+					frappe.wiz.welcome.data.default_language = "العربية"
+					language_field.set_input(frappe.wiz.welcome.data.default_language);
 
 					if (!frappe.wiz._from_load_messages) {
 						language_field.$input.trigger("change");
@@ -271,7 +272,7 @@ function load_frappe_slides() {
 
 					delete frappe.wiz._from_load_messages;
 
-					moment.locale("en");
+					moment.locale("ar");
 				}
 			});
 		},
@@ -285,7 +286,7 @@ function load_frappe_slides() {
 
 		bind_events: function(slide) {
 			slide.get_input("language").unbind("change").on("change", function() {
-				var lang = $(this).val() || "english";
+				var lang = $(this).val() || "العربية";
 				frappe._messages = {};
 				frappe.call({
 					method: "frappe.desk.page.setup_wizard.setup_wizard.load_messages",
@@ -352,6 +353,7 @@ function load_frappe_slides() {
 					frappe.wiz.region.data = data.message;
 					frappe.wiz.region.setup_fields(slide);
 					frappe.wiz.region.bind_events(slide);
+					$('[data-fieldname="country"]').val('Saudi Arabia').change();
 				}
 			});
 		},
@@ -372,6 +374,9 @@ function load_frappe_slides() {
 			if (data.default_country) {
 				slide.set_input("country", data.default_country);
 			}
+			
+//			$('[data-fieldname="country"]').val('Saudi Arabia');
+//			slide.get_field('country').$input.trigger('change');
 		},
 
 		bind_events: function(slide) {
@@ -457,6 +462,9 @@ function load_frappe_slides() {
 		},
 		css_class: "single-column"
 	};
+
+	
+
 };
 
 frappe.wiz.on("before_load", function() {
@@ -466,4 +474,3 @@ frappe.wiz.on("before_load", function() {
 	frappe.wiz.add_slide(frappe.wiz.welcome);
 	frappe.wiz.add_slide(frappe.wiz.region);
 	frappe.wiz.add_slide(frappe.wiz.user);
-});
