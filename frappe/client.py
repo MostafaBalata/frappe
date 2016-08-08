@@ -75,8 +75,8 @@ def insert(doc=None):
 
 	if doc.get("parent") and doc.get("parenttype"):
 		# inserting a child record
-		parent = frappe.get_doc(doc.parenttype, doc.parent)
-		parent.append(doc)
+		parent = frappe.get_doc(doc.get("parenttype"), doc.get("parent"))
+		parent.append(doc.get("parentfield"), doc)
 		parent.save()
 		return parent.as_dict()
 	else:
@@ -153,6 +153,12 @@ def bulk_update(docs):
 def has_permission(doctype, docname, perm_type="read"):
 	# perm_type can be one of read, write, create, submit, cancel, report
 	return {"has_permission": frappe.has_permission(doctype, perm_type.lower(), docname)}
+
+@frappe.whitelist()
+def get_password(doctype, name, fieldname):
+	frappe.only_for("System Manager")
+	return frappe.get_doc(doctype, name).get_password(fieldname)
+
 
 @frappe.whitelist()
 def get_js(items):

@@ -70,6 +70,9 @@ def add_to_date(date, years=0, months=0, days=0):
 	from dateutil.relativedelta import relativedelta
 
 	as_string, as_datetime = False, False
+	if date==None:
+		date = now_datetime()
+
 	if isinstance(date, basestring):
 		as_string = True
 		if " " in date:
@@ -130,8 +133,8 @@ def convert_utc_to_user_timezone(utc_timestamp):
 
 def now():
 	"""return current datetime as yyyy-mm-dd hh:mm:ss"""
-	if getattr(frappe.local, "current_date", None):
-		return getdate(frappe.local.current_date).strftime(DATE_FORMAT) + " " + \
+	if frappe.flags.current_date:
+		return getdate(frappe.flags.current_date).strftime(DATE_FORMAT) + " " + \
 			now_datetime().strftime(TIME_FORMAT)
 	else:
 		return now_datetime().strftime(DATETIME_FORMAT)
@@ -173,7 +176,10 @@ def get_time(time_str):
 		return time_str.time()
 	elif isinstance(time_str, datetime.time):
 		return time_str
-	return parser.parse(time_str).time()
+	else:
+		if isinstance(time_str, datetime.timedelta):
+			time_str = str(time_str)
+		return parser.parse(time_str).time()
 
 def get_datetime_str(datetime_obj):
 	if isinstance(datetime_obj, basestring):
@@ -538,7 +544,7 @@ def filter_strip_join(some_list, sep):
 
 def get_url(uri=None, full_address=False):
 	"""get app url from request"""
-	host_name = frappe.local.conf.host_name
+	host_name = frappe.local.conf.host_name or frappe.local.conf.hostname
 
 	if uri and (uri.startswith("http://") or uri.startswith("https://")):
 		return uri
@@ -547,8 +553,20 @@ def get_url(uri=None, full_address=False):
 		if hasattr(frappe.local, "request") and frappe.local.request and frappe.local.request.host:
 			protocol = 'https' == frappe.get_request_header('X-Forwarded-Proto', "") and 'https://' or 'http://'
 			host_name = protocol + frappe.local.request.host
+
 		elif frappe.local.site:
-			host_name = "http://{}".format(frappe.local.site)
+			protocol = 'http://'
+
+			if frappe.local.conf.ssl_certificate:
+				protocol = 'https://'
+
+			elif frappe.local.conf.wildcard:
+				domain = frappe.local.conf.wildcard.get('domain')
+				if domain and frappe.local.site.endswith(domain) and frappe.local.conf.wildcard.get('ssl_certificate'):
+					protocol = 'https://'
+
+			host_name = protocol + frappe.local.site
+
 		else:
 			host_name = frappe.db.get_value("Website Settings", "Website Settings",
 				"subdomain")
@@ -694,9 +712,19 @@ def expand_relative_urls(html):
 		if not to_expand[2].startswith("/"):
 			to_expand[2] = "/" + to_expand[2]
 		to_expand.insert(2, url)
+
+		if 'url' in to_expand[0] and to_expand[1].startswith('(') and to_expand[-1].endswith(')'):
+			# background-image: url('/assets/...') - workaround for wkhtmltopdf print-media-type
+			to_expand.append(' !important')
+
 		return "".join(to_expand)
 
-	return re.sub('(href|src){1}([\s]*=[\s]*[\'"]?)((?!http)[^\'" >]+)([\'"]?)', _expand_relative_urls, html)
+	html = re.sub('(href|src){1}([\s]*=[\s]*[\'"]?)((?!http)[^\'" >]+)([\'"]?)', _expand_relative_urls, html)
+
+	# background-image: url('/assets/...')
+	html = re.sub('(:[\s]?url)(\([\'"]?)([^\)]*)([\'"]?\))', _expand_relative_urls, html)
+
+	return html
 
 def quoted(url):
 	return cstr(urllib.quote(encode(url), safe=b"~@#$&()*!+=:;,.?/'"))

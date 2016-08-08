@@ -7,6 +7,7 @@ import frappe.utils
 import frappe.share
 import frappe.defaults
 import frappe.desk.form.meta
+from frappe.model.utils.list_settings import get_list_settings
 from frappe.permissions import get_doc_permissions
 from frappe import _
 
@@ -34,6 +35,8 @@ def getdoc(doctype, name, user=None):
 		if not doc.has_permission("read"):
 			raise frappe.PermissionError, ("read", doctype, name)
 
+		doc.apply_fieldlevel_read_permissions()
+
 		# add file list
 		get_docinfo(doc)
 
@@ -54,6 +57,8 @@ def getdoctype(doctype, with_parent=False, cached_timestamp=None):
 	"""load doctype"""
 
 	docs = []
+	parent_dt = None
+
 	# with parent (called from report builder)
 	if with_parent:
 		parent_dt = frappe.model.meta.get_parent_dt(doctype)
@@ -65,6 +70,7 @@ def getdoctype(doctype, with_parent=False, cached_timestamp=None):
 		docs = get_meta_bundle(doctype)
 
 	frappe.response['user_permissions'] = get_user_permissions(docs)
+	frappe.response['list_settings'] = get_list_settings(parent_dt or doctype)
 
 	if cached_timestamp and docs[0].modified==cached_timestamp:
 		return "use_cache"
@@ -153,8 +159,7 @@ def get_communication_data(doctype, name, start=0, limit=20, after=None, fields=
 
 	if after:
 		# find after a particular date
-		conditions+= ' and creation > {after}'
-		limit = 1000
+		conditions+= ' and creation > {0}'.format(after)
 
 	communications = frappe.db.sql("""select {fields}
 		from tabCommunication

@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _, msgprint
 from frappe.utils import flt, cstr, now, get_datetime_str
+from frappe.utils.background_jobs import enqueue
 from frappe.model.base_document import BaseDocument, get_controller
 from frappe.model.naming import set_new_name
 from werkzeug.exceptions import NotFound, Forbidden
@@ -166,6 +167,23 @@ class Document(BaseDocument):
 		frappe.msgprint(msg)
 		raise frappe.PermissionError(msg)
 
+	def lock(self):
+		'''Will set docstatus to 3 + the current docstatus and mark it as queued
+
+		3 = queued for saving
+		4 = queued for submission
+		5 = queued for cancellation
+		'''
+		self.db_set('docstatus', 3 + self.docstatus, update_modified = False)
+
+	def unlock(self):
+		'''set the original docstatus at the time it was locked in the controller'''
+		current_docstatus = self.db_get('docstatus') - 4
+		if current_docstatus < 0:
+			current_docstatus = 0
+
+		self.db_set('docstatus', current_docstatus, update_modified = False)
+
 	def insert(self, ignore_permissions=None):
 		"""Insert the document in the database (as a new document).
 		This will check for user permissions and execute `before_insert`,
@@ -219,7 +237,11 @@ class Document(BaseDocument):
 
 		return self
 
-	def save(self, ignore_permissions=None):
+	def save(self, *args, **kwargs):
+		"""Wrapper for _save"""
+		return self._save(*args, **kwargs)
+
+	def _save(self, ignore_permissions=None):
 		"""Save the current document in the database in the **DocType**'s table or
 		`tabSingles` (for single types).
 
@@ -541,6 +563,8 @@ class Document(BaseDocument):
 			if not d.creation:
 				d.creation = self.creation
 
+		frappe.flags.currently_saving.append((self.doctype, self.name))
+
 	def set_docstatus(self):
 		if self.docstatus==None:
 			self.docstatus=0
@@ -554,22 +578,49 @@ class Document(BaseDocument):
 		self._validate_selects()
 		self._validate_constants()
 		self._validate_length()
+		self._sanitize_content()
+		self._save_passwords()
 
 		children = self.get_all_children()
 		for d in children:
 			d._validate_selects()
 			d._validate_constants()
 			d._validate_length()
+			d._sanitize_content()
+			d._save_passwords()
+
+		if self.is_new():
+			# don't set fields like _assign, _comments for new doc
+			for fieldname in optional_fields:
+				self.set(fieldname, None)
 
 		# extract images after validations to save processing if some validation error is raised
 		self._extract_images_from_text_editor()
 		for d in children:
 			d._extract_images_from_text_editor()
 
-		if self.is_new():
-			# don't set fields like _assign, _comments for new doc
-			for fieldname in optional_fields:
-				self.set(fieldname, None)
+	def apply_fieldlevel_read_permissions(self):
+		'''Remove values the user is not allowed to read (called when loading in desk)'''
+		has_higher_permlevel = False
+		for p in self.get_permissions():
+			if p.permlevel > 0:
+				has_higher_permlevel = True
+				break
+
+		if not has_higher_permlevel:
+			return
+
+		has_access_to = self.get_permlevel_access('read')
+
+		for df in self.meta.fields:
+			if not df.permlevel in has_access_to:
+				self.set(df.fieldname, None)
+
+		for table_field in self.meta.get_table_fields():
+			for df in frappe.get_meta(table_field.options):
+				if not df.permlevel in has_access_to:
+					for child in self.get(table_field.fieldname) or []:
+						child.set(df.fieldname, None)
 
 	def validate_higher_perm_levels(self):
 		"""If the user does not have permissions at permlevel > 0, then reset the values to original / default"""
@@ -589,18 +640,18 @@ class Document(BaseDocument):
 				for d in self.get(df.fieldname):
 					d.reset_values_if_no_permlevel_access(has_access_to, high_permlevel_fields)
 
-	def get_permlevel_access(self):
+	def get_permlevel_access(self, permission_type='write'):
 		if not hasattr(self, "_has_access_to"):
 			user_roles = frappe.get_roles()
 			self._has_access_to = []
 			for perm in self.get_permissions():
-				if perm.role in user_roles and perm.permlevel > 0 and perm.write:
+				if perm.role in user_roles and perm.permlevel > 0 and perm.get(permission_type):
 					if perm.permlevel not in self._has_access_to:
 						self._has_access_to.append(perm.permlevel)
 
 		return self._has_access_to
 
-	def has_permlevel_access_to(self, fieldname, df=None):
+	def has_permlevel_access_to(self, fieldname, df=None, permission_type='read'):
 		if not df:
 			df = self.meta.get_field(fieldname)
 
@@ -676,7 +727,15 @@ class Document(BaseDocument):
 		- Save (0) > Save (0)
 		- Save (0) > Submit (1)
 		- Submit (1) > Submit (1)
-		- Submit (1) > Cancel (2)"""
+		- Submit (1) > Cancel (2)
+
+		If docstatus is > 2, it will throw exception as document is deemed queued
+		"""
+
+		if self.docstatus > 2:
+			frappe.throw(_('This document is currently queued for execution. Please try again'),
+				title=_('Document Queued'), indicator='red')
+
 		if not self.docstatus:
 			self.docstatus = 0
 		if docstatus==0:
@@ -741,7 +800,10 @@ class Document(BaseDocument):
 		if frappe.flags.print_messages:
 			print self.as_json().encode("utf-8")
 
-		raise frappe.MandatoryError(", ".join((each[0] for each in missing)))
+		raise frappe.MandatoryError('[{doctype}, {name}]: {fields}'.format(
+			fields=", ".join((each[0] for each in missing)),
+			doctype=self.doctype,
+			name=self.name))
 
 	def _validate_links(self):
 		if self.flags.ignore_links:
@@ -796,16 +858,26 @@ class Document(BaseDocument):
 		return f
 
 	@whitelist.__func__
-	def submit(self):
+	def _submit(self):
 		"""Submit the document. Sets `docstatus` = 1, then saves."""
 		self.docstatus = 1
 		self.save()
 
 	@whitelist.__func__
-	def cancel(self):
+	def _cancel(self):
 		"""Cancel the document. Sets `docstatus` = 2, then saves."""
 		self.docstatus = 2
 		self.save()
+
+	@whitelist.__func__
+	def submit(self):
+		"""Submit the document. Sets `docstatus` = 1, then saves."""
+		self._submit()
+
+	@whitelist.__func__
+	def cancel(self):
+		"""Cancel the document. Sets `docstatus` = 2, then saves."""
+		self._cancel()
 
 	def delete(self):
 		"""Delete document."""
@@ -839,7 +911,6 @@ class Document(BaseDocument):
 		elif self._action=="update_after_submit":
 			self.run_method("before_update_after_submit")
 
-
 	def run_post_save_methods(self):
 		"""Run standard methods after `INSERT` or `UPDATE`. Standard Methods are:
 
@@ -868,6 +939,9 @@ class Document(BaseDocument):
 		self.clear_cache()
 		self.notify_update()
 
+		if (self.doctype, self.name) in frappe.flags.currently_saving:
+			frappe.flags.currently_saving.remove((self.doctype, self.name))
+
 		self.latest = None
 
 	def clear_cache(self):
@@ -886,8 +960,9 @@ class Document(BaseDocument):
 						# clear linked doctypes list
 						cache.hdel("linked_doctypes", doctype)
 
-					# delete linked with cache for all users
+					# for all users, delete linked with cache and per doctype linked with cache
 					cache.delete_value("user:*:linked_with:{doctype}:{name}".format(doctype=doctype, name=name))
+					cache.delete_value("user:*:linked_with:{doctype}:{name}:*".format(doctype=doctype, name=name))
 
 		_clear_cache(self)
 		for d in self.get_all_children():
@@ -1063,7 +1138,7 @@ class Document(BaseDocument):
 
 	def set_onload(self, key, value):
 		if not self.get("__onload"):
-			self.set("__onload", {})
+			self.set("__onload", frappe._dict())
 		self.get("__onload")[key] = value
 
 	def update_timeline_doc(self):
@@ -1089,3 +1164,42 @@ class Document(BaseDocument):
 					"timeline_doctype": timeline_doctype,
 					"timeline_name": timeline_name
 				})
+
+	def queue_action(self, action, **kwargs):
+		'''Run an action in background. If the action has an inner function,
+		like _submit for submit, it will call that instead'''
+
+		if action in ('save', 'submit', 'cancel'):
+			# set docstatus explicitly again due to inconsistent action
+			self.docstatus = {'save':0, 'submit':1, 'cancel': 2}[action]
+		else:
+			raise 'Action must be one of save, submit, cancel'
+
+		# call _submit instead of submit, so you can override submit to call
+		# run_delayed based on some action
+		# See: Stock Reconciliation
+		if hasattr(self, '_' + action):
+			action = '_' + action
+
+		self.lock()
+		enqueue('frappe.model.document.execute_action', doctype=self.doctype, name=self.name,
+			action=action, **kwargs)
+
+def execute_action(doctype, name, action, **kwargs):
+	'''Execute an action on a document (called by background worker)'''
+	doc = frappe.get_doc(doctype, name)
+	doc.unlock()
+	try:
+		getattr(doc, action)(**kwargs)
+	except frappe.ValidationError:
+		# add a comment (?)
+		doc.add_comment('Comment',
+			_('Action Failed') + '<br><br>' + json.loads(frappe.local.message_log[-1]).get('message'))
+
+		doc.notify_update()
+	except Exception:
+		# add a comment (?)
+		doc.add_comment('Comment',
+			_('Action Failed') + '<pre><code>' + frappe.get_traceback() + '</pre></code>')
+
+		doc.notify_update()

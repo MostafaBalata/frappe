@@ -104,6 +104,11 @@ frappe.ui.form.save = function(frm, action, callback, btn) {
 
 		$.each(frappe.model.get_all_docs(frm.doc), function(i, doc) {
 
+			if(doc.parent && doc.__unedited) {
+				frappe.model.remove_from_locals(doc.doctype, doc.name);
+				return;
+			}
+
 			var error_fields = [];
 			var folded = false;
 
@@ -176,9 +181,13 @@ frappe.ui.form.save = function(frm, action, callback, btn) {
 			callback: function(r) {
 				opts.callback && opts.callback(r);
 			},
-			always: function() {
+			always: function(r) {
 				frappe.ui.form.is_saving = false;
-				frappe.ui.form.update_calling_link(opts.args.doc.name);
+
+				var doc = r.docs && r.docs[0];
+				if(doc) {
+					frappe.ui.form.update_calling_link(doc.name);
+				}
 			}
 		})
 	};

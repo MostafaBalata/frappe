@@ -22,8 +22,11 @@ doctype_properties = {
 	'default_print_format': 'Data',
 	'read_only_onload': 'Check',
 	'allow_copy': 'Check',
+	'istable': 'Check',
 	'quick_entry': 'Check',
-	'max_attachments': 'Int'
+	'editable_grid': 'Check',
+	'max_attachments': 'Int',
+	'image_view': 'Check'
 }
 
 docfield_properties = {

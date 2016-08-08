@@ -121,7 +121,3 @@ def get_attr(cmd):
 @frappe.whitelist()
 def ping():
 	return "pong"
-
-@frappe.async.handler
-def async_ping():
-	return "pong"

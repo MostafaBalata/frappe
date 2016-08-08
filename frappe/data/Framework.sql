@@ -112,6 +112,7 @@ CREATE TABLE `tabDocType` (
   `search_fields` varchar(255) DEFAULT NULL,
   `issingle` int(1) NOT NULL DEFAULT 0,
   `istable` int(1) NOT NULL DEFAULT 0,
+  `editable_grid` int(1) NOT NULL DEFAULT 1,
   `module` varchar(255) DEFAULT NULL,
   `app` varchar(255) DEFAULT NULL,
   `autoname` varchar(255) DEFAULT NULL,
@@ -148,6 +149,7 @@ CREATE TABLE `tabDocType` (
   `_user_tags` varchar(255) DEFAULT NULL,
   `custom` int(1) NOT NULL DEFAULT 0,
   `beta` int(1) NOT NULL DEFAULT 0,
+  `image_view` int(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`name`),
   KEY `parent` (`parent`)
 ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -198,9 +200,13 @@ CREATE TABLE `tabSingles` (
 
 DROP TABLE IF EXISTS `__Auth`;
 CREATE TABLE `__Auth` (
-  `user` VARCHAR(255) NOT NULL PRIMARY KEY,
-  `password` VARCHAR(255) NOT NULL,
-  KEY `user` (`user`)
+	`doctype` VARCHAR(140) NOT NULL,
+	`name` VARCHAR(255) NOT NULL,
+	`fieldname` VARCHAR(140) NOT NULL,
+	`password` VARCHAR(255) NOT NULL,
+	`salt` VARCHAR(140),
+	`encrypted` INT(1) NOT NULL DEFAULT 0,
+	PRIMARY KEY (`doctype`, `name`, `fieldname`)
 ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --

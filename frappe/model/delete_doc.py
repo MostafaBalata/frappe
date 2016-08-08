@@ -8,6 +8,7 @@ import frappe.model.meta
 from frappe.model.dynamic_links import get_dynamic_link_map
 import frappe.defaults
 from frappe.utils.file_manager import remove_all
+from frappe.utils.password import delete_all_passwords_for
 from frappe import _
 from frappe.model.naming import revert_series_if_last
 
@@ -36,6 +37,9 @@ def delete_doc(doctype=None, name=None, force=0, ignore_doctypes=None, for_reloa
 		# delete attachments
 		remove_all(doctype, name)
 
+		# delete passwords
+		delete_all_passwords_for(doctype, name)
+
 		doc = None
 		if doctype=="DocType":
 			if for_reload:
@@ -48,6 +52,11 @@ def delete_doc(doctype=None, name=None, force=0, ignore_doctypes=None, for_reloa
 					doc.run_method("before_reload")
 
 			else:
+				doc = frappe.get_doc(doctype, name)
+				
+				update_flags(doc, flags, ignore_permissions)
+				check_permission_and_not_submitted(doc)
+					
 				frappe.db.sql("delete from `tabCustom Field` where dt = %s", name)
 				frappe.db.sql("delete from `tabCustom Script` where dt = %s", name)
 				frappe.db.sql("delete from `tabProperty Setter` where doc_type = %s", name)
@@ -59,13 +68,7 @@ def delete_doc(doctype=None, name=None, force=0, ignore_doctypes=None, for_reloa
 			doc = frappe.get_doc(doctype, name)
 
 			if not for_reload:
-				if ignore_permissions:
-					if not flags: flags = {}
-					flags["ignore_permissions"] = ignore_permissions
-
-				if flags:
-					doc.flags.update(flags)
-
+				update_flags(doc, flags, ignore_permissions)
 				check_permission_and_not_submitted(doc)
 
 				if not ignore_on_trash:
@@ -136,10 +139,18 @@ def delete_from_table(doctype, name, ignore_doctypes, doc):
 	for t in list(set(tables)):
 		if t not in ignore_doctypes:
 			frappe.db.sql("delete from `tab%s` where parenttype=%s and parent = %s" % (t, '%s', '%s'), (doctype, name))
+			
+def update_flags(doc, flags=None, ignore_permissions=False):
+	if ignore_permissions:
+		if not flags: flags = {}
+		flags["ignore_permissions"] = ignore_permissions
+
+	if flags:
+		doc.flags.update(flags)	
 
 def check_permission_and_not_submitted(doc):
 	# permission
-	if not doc.flags.ignore_permissions and frappe.session.user!="Administrator" and not doc.has_permission("delete"):
+	if not doc.flags.ignore_permissions and frappe.session.user!="Administrator" and (not doc.has_permission("delete") or (doc.doctype=="DocType" and not doc.custom)):
 		frappe.msgprint(_("User not allowed to delete {0}: {1}").format(doc.doctype, doc.name), raise_exception=True)
 
 	# check if submitted

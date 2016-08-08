@@ -5,6 +5,8 @@
 
 frappe.provide("frappe.form.formatters");
 
+frappe.form.link_formatters = {};
+
 frappe.form.formatters = {
 	_right: function(value, options) {
 		if(options && options.inline) {
@@ -63,14 +65,20 @@ frappe.form.formatters = {
 			return '<i class="icon-check-empty text-extra-muted" style="margin-right: 8px;"></i>';
 		}
 	},
-	Link: function(value, docfield, options) {
+	Link: function(value, docfield, options, doc) {
 		var doctype = docfield._options || docfield.options;
 		if(value && value.match(/^['"].*['"]$/)) {
-			return value.replace(/^.(.*).$/, "$1");
+			value.replace(/^.(.*).$/, "$1");
 		}
+
 		if(options && options.for_print) {
 			return value;
 		}
+
+		if(frappe.form.link_formatters[doctype]) {
+			value = frappe.form.link_formatters[doctype](value, doc);
+		}
+
 		if(!value) {
 			return "";
 		}
@@ -99,9 +107,15 @@ frappe.form.formatters = {
 		return value || "";
 	},
 	Datetime: function(value) {
-		return value ? moment(dateutil.convert_to_user_tz(value))
-			.tz(frappe.boot.sysdefaults.time_zone).format('MMMM Do YYYY, h:mm a z') : "";
-		//return value ? dateutil.str_to_user(dateutil.convert_to_user_tz(value)) : "";
+		if(value) {
+			var m = moment(dateutil.convert_to_user_tz(value));
+			if(frappe.boot.sysdefaults.time_zone) {
+				m = m.tz(frappe.boot.sysdefaults.time_zone);
+			}
+			return m.format('MMMM Do YYYY, h:mm a z');
+		} else {
+			return "";
+		}
 	},
 	Text: function(value) {
 		if(value) {

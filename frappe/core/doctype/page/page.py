@@ -32,15 +32,20 @@ class Page(Document):
 	def validate(self):
 		if self.is_new() and not getattr(conf,'developer_mode', 0):
 			frappe.throw(_("Not in Developer Mode"))
-		if frappe.session.user!="Administrator":
+
+		#setting ignore_permissions via update_setup_wizard_access (setup_wizard.py)
+		if frappe.session.user!="Administrator" and not self.flags.ignore_permissions:
 			frappe.throw(_("Only Administrator can edit"))
 
 	# export
 	def on_update(self):
 		"""
-			Writes the .txt for this page and if write_content is checked,
+			Writes the .json for this page and if write_content is checked,
 			it will write out a .html file
 		"""
+		if self.flags.do_not_update_json:
+			return
+
 		from frappe.core.doctype.doctype.doctype import make_module_and_roles
 		make_module_and_roles(self, "roles")
 

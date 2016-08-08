@@ -64,7 +64,7 @@ def application(request):
 			response = frappe.utils.response.download_private_file(request.path)
 
 		elif frappe.local.request.method in ('GET', 'HEAD'):
-			response = frappe.website.render.render(request.path)
+			response = frappe.website.render.render()
 
 		else:
 			raise NotFound
@@ -180,7 +180,7 @@ def serve(port=8000, profile=False, site=None, sites_path='.'):
 	from werkzeug.serving import run_simple
 
 	if profile:
-		application = ProfilerMiddleware(application, sort_by=('tottime', 'calls'))
+		application = ProfilerMiddleware(application, sort_by=('cumtime', 'calls'))
 
 	if not os.environ.get('NO_STATICS'):
 		application = SharedDataMiddleware(application, {

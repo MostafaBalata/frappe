@@ -96,22 +96,25 @@ class EmailAccount(Document):
 
 			server = SMTPServer(login = getattr(self, "login_id", None) \
 					or self.email_id,
-				password = self.password,
 				server = self.smtp_server,
 				port = cint(self.smtp_port),
 				use_ssl = cint(self.use_tls)
 			)
+			if self.password:
+				server.password = self.get_password()
 			server.sess
 
 	def get_server(self, in_receive=False):
 		"""Returns logged in POP3 connection object."""
-		args = {
+
+		args = frappe._dict({
 			"host": self.email_server,
 			"use_ssl": self.use_ssl,
 			"username": getattr(self, "login_id", None) or self.email_id,
-			"password": self.password,
 			"use_imap": self.use_imap
-		}
+		})
+		if self.password:
+			args.password = self.get_password()
 
 		if not args.get("host"):
 			frappe.throw(_("{0} is required").format("Email Server"))
@@ -354,8 +357,8 @@ class EmailAccount(Document):
 				reference_doctype = communication.reference_doctype,
 				reference_name = communication.reference_name,
 				message_id = communication.name,
-				unsubscribe_message = _("Leave this conversation"),
-				bulk=True)
+				in_reply_to = email.mail.get("Message-Id"), # send back the Message-Id as In-Reply-To
+				unsubscribe_message = _("Leave this conversation"))
 
 	def get_unreplied_notification_emails(self):
 		"""Return list of emails listed"""
@@ -397,7 +400,7 @@ def notify_unreplied():
 					# if status is still open
 					frappe.sendmail(recipients=email_account.get_unreplied_notification_emails(),
 						content=comm.content, subject=comm.subject, doctype= comm.reference_doctype,
-						name=comm.reference_name, bulk=True)
+						name=comm.reference_name)
 
 				# update flag
 				comm.db_set("unread_notification_sent", 1)

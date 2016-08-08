@@ -219,7 +219,7 @@ frappe.ui.form.Layout = Class.extend({
 				fieldobj.doctype = me.doc.doctype;
 				fieldobj.docname = me.doc.name;
 				fieldobj.df = frappe.meta.get_docfield(me.doc.doctype,
-					fieldobj.df.fieldname, me.frm ? me.frm.doc.name : me.doc.name);
+					fieldobj.df.fieldname, me.frm ? me.frm.doc.name : me.doc.name) || fieldobj.df;
 
 				// on form change, permissions can change
 				if(me.frm) {
@@ -258,6 +258,9 @@ frappe.ui.form.Layout = Class.extend({
 		// in grid
 		if(doctype != me.doctype) {
 			grid_row = me.get_open_grid_row();
+			if(!grid_row || !grid_row.layout) {
+				return;
+			}
 			fields = grid_row.layout.fields_list;
 		}
 
@@ -394,7 +397,13 @@ frappe.ui.form.Layout = Class.extend({
 		var out = null;
 		var doc = this.doc;
 
-		if (!doc) return;
+		if (!doc && this.get_values) {
+			var doc = this.get_values(true);
+		}
+
+		if (!doc) {
+			return;
+		}
 
 		var parent = this.frm ? this.frm.doc : null;
 
@@ -462,11 +471,11 @@ frappe.ui.form.Section = Class.extend({
 	make_head: function() {
 		var me = this;
 		if(!this.df.collapsible) {
-			$('<div class="col-sm-12"><h6 class="form-section-heading">'
+			$('<div class="col-sm-12"><h6 class="form-section-heading uppercase">'
 				+ __(this.df.label) + '</h6></div>')
 			.appendTo(this.wrapper);
 		} else {
-			this.head = $('<div class="section-head"><a class="h6">'
+			this.head = $('<div class="section-head"><a class="h6 uppercase">'
 				+__(this.df.label)+'</a><span class="octicon octicon-chevron-down collapse-indicator"></span></div>').appendTo(this.wrapper);
 
 			// show / hide based on status

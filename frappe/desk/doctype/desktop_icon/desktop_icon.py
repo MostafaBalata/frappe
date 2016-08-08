@@ -66,12 +66,10 @@ def get_desktop_icons(user=None):
 		for standard_icon in standard_icons:
 			if standard_icon.module_name not in user_icon_names:
 
-				# flag for modules_setup page
-				standard_icon.hidden_in_standard = standard_icon.hidden
-
 				# if blocked, hidden too!
 				if standard_icon.blocked:
 					standard_icon.hidden = 1
+					standard_icon.hidden_in_standard = 1
 
 				user_icons.append(standard_icon)
 
@@ -88,9 +86,14 @@ def get_desktop_icons(user=None):
 	return user_icons
 
 @frappe.whitelist()
-def add_user_icon(label, link, type, _doctype):
+def add_user_icon(_doctype, label=None, link=None, type='link', standard=0):
 	'''Add a new user desktop icon to the desktop'''
-	icon_name = frappe.db.exists('Desktop Icon', {'standard': 0, 'link': link, 'owner': frappe.session.user})
+
+	if not label: label = frappe._(_doctype)
+	if not link: link = 'List/{0}'.format(_doctype)
+
+	icon_name = frappe.db.exists('Desktop Icon', {'standard': standard, 'link': link,
+		'owner': frappe.session.user})
 	if icon_name and frappe.db.get_value('Desktop Icon', icon_name, 'hidden'):
 		frappe.db.set_value('Desktop Icon', icon_name, 'hidden', 0)
 		clear_desktop_icons_cache()
@@ -102,7 +105,7 @@ def add_user_icon(label, link, type, _doctype):
 
 		module = frappe.db.get_value('DocType', _doctype, 'module')
 		module_icon = frappe.get_value('Desktop Icon', {'standard':1, 'module_name':module},
-			['icon', 'color', 'reverse'], as_dict=True)
+			['name', 'icon', 'color', 'reverse'], as_dict=True)
 
 		if not module_icon:
 			module_icon = frappe._dict()
@@ -111,10 +114,10 @@ def add_user_icon(label, link, type, _doctype):
 			module_icon.reverse = 0 if (len(opts) > 1) else 1
 
 		try:
-			frappe.get_doc({
+			new_icon = frappe.get_doc({
 				'doctype': 'Desktop Icon',
 				'label': label,
-				'module_name': label,
+				'module_name': _doctype,
 				'link': link,
 				'type': type,
 				'_doctype': _doctype,
@@ -123,26 +126,65 @@ def add_user_icon(label, link, type, _doctype):
 				'reverse': module_icon.reverse,
 				'idx': idx + 1,
 				'custom': 1,
-				'standard': 0
+				'standard': standard
 			}).insert(ignore_permissions=True)
 			clear_desktop_icons_cache()
 
-			return 1
+			return new_icon.name
 
 		except Exception, e:
 			raise e
 	else:
-		return 1
+		return icon_name
 
 @frappe.whitelist()
-def set_order(new_order):
-	'''set new order by duplicating user icons'''
+def set_order(new_order, user=None):
+	'''set new order by duplicating user icons (if user is set) or set global order'''
 	if isinstance(new_order, basestring):
 		new_order = json.loads(new_order)
 	for i, module_name in enumerate(new_order):
 		if module_name not in ('Explore',):
-			icon = get_user_copy(module_name, frappe.session.user)
+			if user:
+				icon = get_user_copy(module_name, user)
+			else:
+				name = frappe.db.get_value('Desktop Icon',
+					{'standard': 1, 'module_name': module_name})
+				if name:
+					icon = frappe.get_doc('Desktop Icon', name)
+				else:
+					# standard icon missing, create one for DocType
+					name = add_user_icon(module_name, standard=1)
+					icon = frappe.get_doc('Desktop Icon', name)
+
 			icon.db_set('idx', i)
+
+	clear_desktop_icons_cache()
+
+def set_desktop_icons(visible_list):
+	'''Resets all lists and makes only the given one standard,
+	if the desktop icon does not exist and the name is a DocType, then will create
+	an icon for the doctype'''
+
+	# clear all custom
+	frappe.db.sql('delete from `tabDesktop Icon` where standard=0')
+
+	# set all as blocked
+	frappe.db.sql('update `tabDesktop Icon` set blocked=0, hidden=1')
+
+	# set as visible if present, or add icon
+	for module_name in visible_list:
+		name = frappe.db.get_value('Desktop Icon', {'module_name': module_name})
+		if name:
+			frappe.db.set_value('Desktop Icon', name, 'hidden', 0)
+		else:
+			if frappe.db.exists('DocType', module_name):
+				icon_name = add_user_icon(module_name)
+
+				# make it standard
+				frappe.db.set_value('Desktop Icon', icon_name, 'standard', 1)
+
+	# set the order
+	set_order(visible_list)
 
 	clear_desktop_icons_cache()
 

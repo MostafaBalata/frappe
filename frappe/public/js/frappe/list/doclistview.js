@@ -118,6 +118,7 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 		this.can_delete = frappe.model.can_delete(this.doctype);
 		this.meta = locals.DocType[this.doctype];
 		this.$page.find('.frappe-list-area').empty(),
+		this.init_list_settings();
 		this.setup_listview();
 		this.init_list(false);
 		this.init_menu();
@@ -132,7 +133,8 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 	},
 
 	init_headers: function() {
-		var main = frappe.render_template("list_item_main_head", {
+		this.header = this.meta.image_view == 0? "list_item_main_head": "image_view_item_main_head";
+		var main = frappe.render_template(this.header, {
 			columns: this.listview.columns,
 			right_column: this.listview.settings.right_column,
 			_checkbox: ((frappe.model.can_delete(this.doctype) || this.listview.settings.selectable)
@@ -194,13 +196,18 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 
 	init_filters: function() {
 		var me = this;
-		if(this.listview.settings.filters) {
-			$.each(this.listview.settings.filters, function(i, f) {
+		var set_filters = function(filters) {
+			$.each(filters, function(i, f) {
 				if(f.length===3) {
 					f = [me.doctype, f[0], f[1], f[2]]
 				}
 				me.filter_list.add_filter(f[0], f[1], f[2], f[3]);
 			});
+		}
+		if(this.list_settings.filters) {
+			set_filters(this.list_settings.filters);
+		} else if(this.listview.settings.filters) {
+			set_filters(this.listview.settings.filters);
 		}
 	},
 
@@ -209,6 +216,25 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 		var me = this;
 		if(this.listview.sort_selector) {
 			args = this.listview.sort_selector;
+		}
+
+		if(this.list_settings.order_by) {
+			// last saved settings
+			var order_by = this.list_settings.order_by
+
+			if(order_by.indexOf('`.`')!==-1) {
+				// scrub table name (separted by dot), like `tabTime Log`.`modified` desc`
+				order_by = order_by.split('.')[1];
+			}
+
+			parts = order_by.split(' ');
+			if(parts.length===2) {
+				var fieldname = strip(parts[0], '`');
+				args = {
+					sort_by: fieldname,
+					sort_order: parts[1]
+				}
+			}
 		}
 		this.sort_selector = new frappe.ui.SortSelector({
 			parent: this.wrapper.find('.list-filters'),
@@ -234,7 +260,7 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 	setup_listview: function() {
 		this.listview = frappe.views.get_listview(this.doctype, this);
 		this.wrapper = this.$page.find('.frappe-list-area');
-		this.page_length = 20;
+		this.page_length = this.list_settings.limit || 20;
 		this.allow_delete = true;
 	},
 	init_list: function(auto_run) {
@@ -242,6 +268,7 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 		// init list
 		this.make({
 			method: 'frappe.desk.reportview.get',
+			save_list_settings: true,
 			get_args: this.get_args,
 			parent: this.wrapper,
 			freeze: true,
@@ -278,10 +305,8 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 			this.listview.settings.refresh(this);
 		}
 
-		if(frappe.route_options) {
-			this.set_route_options();
-			this.run();
-		} else if(this.dirty) {
+		this.set_filters_before_run();
+		if(this.dirty) {
 			this.run();
 		} else {
 			if(new Date() - (this.last_updated_on || 0) > 30000) {
@@ -291,57 +316,70 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 		}
 	},
 
-	set_route_options: function() {
+	set_filters_before_run: function() {
 		// set filters from frappe.route_options
 		// before switching pages, frappe.route_options can have pre-set filters
 		// for the list view
 		var me = this;
-		me.filter_list.clear_filters();
-		$.each(frappe.route_options, function(key, value) {
-			var doctype = null;
 
-			// if `Child DocType.fieldname`
-			if (key.indexOf(".")!==-1) {
-				doctype = key.split(".")[0];
-				key = key.split(".")[1];
-			}
+		if(frappe.route_options) {
+			this.filter_list.clear_filters();
+			$.each(frappe.route_options, function(key, value) {
+				var doctype = null;
 
-			// find the table in which the key exists
-			// for example the filter could be {"item_code": "X"}
-			// where item_code is in the child table.
+				// if `Child DocType.fieldname`
+				if (key.indexOf(".")!==-1) {
+					doctype = key.split(".")[0];
+					key = key.split(".")[1];
+				}
 
-			// we can search all tables for mapping the doctype
-			if(!doctype) {
-				if(in_list(frappe.model.std_fields_list, key)) {
-					// standard
-					doctype = me.doctype;
-				} else if(frappe.meta.has_field(me.doctype, key)) {
-					// found in parent
-					doctype = me.doctype;
-				} else {
-					frappe.meta.get_table_fields(me.doctype).every(function(d) {
-						if(frappe.meta.has_field(d.options, key)) {
-							doctype = d.options;
-							return false;
+				// find the table in which the key exists
+				// for example the filter could be {"item_code": "X"}
+				// where item_code is in the child table.
+
+				// we can search all tables for mapping the doctype
+				if(!doctype) {
+					if(in_list(frappe.model.std_fields_list, key)) {
+						// standard
+						doctype = me.doctype;
+					} else if(frappe.meta.has_field(me.doctype, key)) {
+						// found in parent
+						doctype = me.doctype;
+					} else {
+						frappe.meta.get_table_fields(me.doctype).every(function(d) {
+							if(frappe.meta.has_field(d.options, key)) {
+								doctype = d.options;
+								return false;
+							}
+							return true;
+						});
+
+						if(!doctype) {
+							frappe.msgprint(__('Warning: Unable to find {0} in any table related to {1}', [
+								key, __(me.doctype)]));
 						}
-					});
-
-					if(!doctype) {
-						frappe.msgprint(__('Warning: Unable to find {0} in any table related to {1}', [
-							key, __(me.doctype)]));
 					}
 				}
-			}
 
-			if(doctype) {
-				if($.isArray(value)) {
-					me.filter_list.add_filter(doctype, key, value[0], value[1]);
-				} else {
-					me.filter_list.add_filter(doctype, key, "=", value);
+				if(doctype) {
+					if($.isArray(value)) {
+						me.filter_list.add_filter(doctype, key, value[0], value[1]);
+					} else {
+						me.filter_list.add_filter(doctype, key, "=", value);
+					}
 				}
-			}
-		});
-		frappe.route_options = null;
+			});
+			frappe.route_options = null;
+			this.dirty = true;
+		} else if(this.list_settings && this.list_settings.filters
+				&& this.list_settings.updated_on != this.list_settings_updated_on) {
+			// update remembered list settings
+			this.filter_list.clear_filters();
+			this.list_settings.filters.forEach(function(f) {
+				me.filter_list.add_filter(f[0], f[1], f[2], f[3]);
+			});
+			this.dirty = true;
+		}
 	},
 
 	run: function(more) {
@@ -390,6 +428,8 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 		if(this.listview.settings.post_render) {
 			this.listview.settings.post_render(this);
 		}
+
+		this.list_settings_updated_on = this.list_settings.updated_on;
 	},
 
 	make_no_result: function() {
@@ -407,6 +447,12 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 		data.doctype = this.doctype;
 		this.listview.render(row, data, this);
 	},
+	render_image_view_row: function(row, data) {
+		for (var i = 0; i < data.length; i++) {
+			data[i].doctype = this.doctype;
+			this.listview.render(row, data[i], this)
+		}
+	},
 	get_args: function() {
 		var args = {
 			doctype: this.doctype,
@@ -422,7 +468,7 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 		      args.filters.push(f);
 		});
 
-		args.order_by = this.sort_selector.sort_by + ' ' + this.sort_selector.sort_order;
+		args.order_by = '`tab' + this.doctype + '`.`' + this.sort_selector.sort_by + '` ' + this.sort_selector.sort_order;
 
 		return args;
 	},
@@ -492,7 +538,7 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 			frappe.add_to_desktop(me.doctype, me.doctype);
 		}, true);
 
-		if (frappe.boot.developer_mode===1) {
+		if (in_list(user_roles, "System Manager") && frappe.boot.developer_mode===1) {
 			// edit doctype
 			this.page.add_menu_item(__("Edit DocType"), function() {
 				frappe.set_route('Form', 'DocType', me.doctype);
@@ -577,7 +623,7 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 					print_format = args.print_sel ? args.print_sel:default_print_format;
 
 					var json_string = JSON.stringify(docname);
-					var w = window.open("/api/method/frappe.templates.pages.print.download_multi_pdf?"
+					var w = window.open("/api/method/frappe.utils.print_format.download_multi_pdf?"
 						+"doctype="+encodeURIComponent(me.doctype)
 						+"&name="+encodeURIComponent(json_string)
 						+"&format="+encodeURIComponent(print_format)
@@ -669,8 +715,14 @@ frappe.views.DocListView = frappe.ui.Listing.extend({
 	},
 
 	get_checked_items: function() {
+		var me = this;
 		return $.map(this.$page.find('.list-delete:checked'), function(e) {
-			return $(e).parents(".list-row:first").data('data');
+			if(me.meta.image_view == 0){
+				return $(e).parents(".list-row:first").data('data');
+			}
+			else{
+				return $(e).parents(".image-view:first").data('data');
+			}
 		});
 	},
 

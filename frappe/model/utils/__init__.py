@@ -7,6 +7,7 @@ from frappe.utils import cstr
 from frappe.build import html_to_js_template
 import re
 
+
 """
 Model utilities, unclassified functions
 """
@@ -32,8 +33,10 @@ def set_field_property(filters, key, value):
 
 	frappe.db.commit()
 
+class InvalidIncludePath(frappe.ValidationError): pass
+
 def render_include(content):
-	'''render {% include "app/path/filename" in js file %}'''
+	'''render {% raw %}{% include "app/path/filename" %}{% endraw %} in js file'''
 
 	content = cstr(content)
 
@@ -42,7 +45,7 @@ def render_include(content):
 		if "{% include" in content:
 			paths = re.findall(r'''{% include\s['"](.*)['"]\s%}''', content)
 			if not paths:
-				frappe.throw('Invalid include path')
+				frappe.throw('Invalid include path', InvalidIncludePath)
 
 			for path in paths:
 				app, app_path = path.split('/', 1)

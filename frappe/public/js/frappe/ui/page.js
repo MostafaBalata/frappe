@@ -19,6 +19,8 @@ frappe.ui.make_app_page = function(opts) {
 	return opts.parent.page;
 }
 
+frappe.ui.pages = {};
+
 frappe.ui.Page = Class.extend({
 	init: function(opts) {
 		$.extend(this, opts);
@@ -29,7 +31,7 @@ frappe.ui.Page = Class.extend({
 		this.views = {};
 
 		this.make();
-
+		frappe.ui.pages[frappe.get_route_str()] = this;
 	},
 
 	make: function() {
@@ -90,7 +92,6 @@ frappe.ui.Page = Class.extend({
 		this.page_form = $('<div class="page-form row hide"></div>').prependTo(this.main);
 		this.inner_toolbar = $('<div class="form-inner-toolbar hide"></div>').prependTo(this.main);
 		this.icon_group = this.page_actions.find(".page-icon-group");
-
 	},
 
 	set_indicator: function(label, color) {
@@ -290,7 +291,6 @@ frappe.ui.Page = Class.extend({
 
 	// page::title
 	get_title_area: function() {
-		alert(this.$title_area)
 		return this.$title_area;
 	},
 
@@ -412,3 +412,13 @@ frappe.ui.Page = Class.extend({
 		this.wrapper.trigger('view-change');
 	}
 });
+
+frappe.ui.scroll = function(element, animate, additional_offset) {
+	var header_offset = $(".navbar").height() + $(".page-head").height();
+	var top = $(element).offset().top - header_offset - cint(additional_offset);
+	if (animate) {
+		$("html, body").animate({ scrollTop: top });
+	} else {
+		$(window).scrollTop(top);
+	}
+}

@@ -4,13 +4,14 @@
 from __future__ import unicode_literals
 import frappe, sys
 from frappe import _
-from frappe.utils import cint, flt, now, cstr, strip_html, getdate, get_datetime, to_timedelta
+from frappe.utils import (cint, flt, now, cstr, strip_html, getdate, get_datetime, to_timedelta,
 from frappe.model import default_fields
 from frappe.model.naming import set_new_name
 from frappe.model.utils.link_count import notify_link_count
 from frappe.modules import load_doctype_module
 from frappe.model import display_fieldtypes
 from frappe.model.db_schema import type_map, varchar_len
+from frappe.utils.password import get_decrypted_password, set_encrypted_password
 
 _classes = {}
 
@@ -349,7 +350,9 @@ class BaseDocument(object):
 
 	def db_set(self, fieldname, value, update_modified=True):
 		self.set(fieldname, value)
-		if update_modified:
+		if update_modified and (self.doctype, self.name) not in frappe.flags.currently_saving:
+			# don't update modified timestamp if called from post save methods
+			# like on_update or on_submit
 			self.set("modified", now())
 			self.set("modified_by", frappe.session.user)
 
@@ -357,6 +360,10 @@ class BaseDocument(object):
 			self.modified, self.modified_by, update_modified=update_modified)
 
 		self.run_method('on_change')
+
+	def db_get(self, fieldname):
+		'''get database vale for this fieldname'''
+		return frappe.db.get_value(self.doctype, self.name, fieldname)
 
 	def update_modified(self):
 		'''Update modified timestamp'''
@@ -476,7 +483,7 @@ class BaseDocument(object):
 					value, comma_options))
 
 	def _validate_constants(self):
-		if frappe.flags.in_import or self.is_new():
+		if frappe.flags.in_import or self.is_new() or self.flags.ignore_validate_constants:
 			return
 
 		constants = [d.fieldname for d in self.meta.get("fields", {"set_only_once": 1})]
@@ -504,8 +511,8 @@ class BaseDocument(object):
 					else:
 						reference = "{0} {1}".format(_(self.doctype), self.name)
 
-					frappe.throw(_("{0}: '{1}' will get truncated, as max characters allowed is {2}")\
-						.format(reference, _(df.label), max_length), frappe.CharacterLengthExceededError)
+					frappe.throw(_("{0}: '{1}' ({3}) will get truncated, as max characters allowed is {2}")\
+						.format(reference, _(df.label), max_length, value), frappe.CharacterLengthExceededError, title=_('Value too big'))
 
 	def _validate_update_after_submit(self):
 		# get the full doc with children
@@ -528,6 +535,69 @@ class BaseDocument(object):
 				if self_value != db_value:
 					frappe.throw(_("Not allowed to change {0} after submission").format(df.label),
 						frappe.UpdateAfterSubmitError)
+
+	def _sanitize_content(self):
+		"""Sanitize HTML and Email in field values. Used to prevent XSS.
+
+			- Ignore if 'Ignore XSS Filter' is checked or fieldtype is 'Code'
+		"""
+		if frappe.flags.in_install:
+			return
+
+		for fieldname, value in self.get_valid_dict().items():
+			if not value or not isinstance(value, basestring):
+				continue
+
+			elif ("<" not in value and ">" not in value):
+				# doesn't look like html so no need
+				continue
+
+			elif "<!-- markdown -->" in value and not ("<script" in value or "javascript:" in value):
+				# should be handled separately via the markdown converter function
+				continue
+
+			df = self.meta.get_field(fieldname)
+			sanitized_value = value
+
+			if df and df.get("fieldtype") in ("Data", "Code", "Small Text") and df.get("options")=="Email":
+				sanitized_value = sanitize_email(value)
+
+			elif df and (df.get("ignore_xss_filter")
+						or (df.get("fieldtype")=="Code" and df.get("options")!="Email")
+						or df.get("fieldtype") in ("Attach", "Attach Image")
+
+						# cancelled and submit but not update after submit should be ignored
+						or self.docstatus==2
+						or (self.docstatus==1 and not df.get("allow_on_submit"))):
+				continue
+
+			else:
+				sanitized_value = sanitize_html(value, linkify=df.fieldtype=='Text Editor')
+
+			self.set(fieldname, sanitized_value)
+
+	def _save_passwords(self):
+		'''Save password field values in __Auth table'''
+		if self.flags.ignore_save_passwords:
+			return
+
+		for df in self.meta.get('fields', {'fieldtype': 'Password'}):
+			new_password = self.get(df.fieldname)
+			if new_password and not self.is_dummy_password(new_password):
+				# is not a dummy password like '*****'
+				set_encrypted_password(self.doctype, self.name, new_password, df.fieldname)
+
+				# set dummy password like '*****'
+				self.set(df.fieldname, '*'*len(new_password))
+
+	def get_password(self, fieldname='password', raise_exception=True):
+		if self.get(fieldname) and not self.is_dummy_password(self.get(fieldname)):
+			return self.get(fieldname)
+
+		return get_decrypted_password(self.doctype, self.name, fieldname, raise_exception=raise_exception)
+
+	def is_dummy_password(self, pwd):
+		return ''.join(set(pwd))=='*'
 
 	def precision(self, fieldname, parentfield=None):
 		"""Returns float precision for a particular field (or get global default).
@@ -559,7 +629,7 @@ class BaseDocument(object):
 		return self._precision[cache_key][fieldname]
 
 
-	def get_formatted(self, fieldname, doc=None, currency=None, absolute_value=False):
+	def get_formatted(self, fieldname, doc=None, currency=None, absolute_value=False, translated=False):
 		from frappe.utils.formatters import format_value
 
 		df = self.meta.get_field(fieldname)
@@ -568,6 +638,10 @@ class BaseDocument(object):
 			df = get_default_df(fieldname)
 
 		val = self.get(fieldname)
+
+		if translated:
+			val = _(val)
+
 		if absolute_value and isinstance(val, (int, float)):
 			val = abs(self.get(fieldname))
 
@@ -602,9 +676,6 @@ class BaseDocument(object):
 				print_hide = df.print_hide
 			elif meta_df:
 				print_hide = meta_df.print_hide
-
-		if fieldname=='in_words':
-			print fieldname, print_hide, meta_df.print_hide
 
 		return print_hide
 

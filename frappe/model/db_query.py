@@ -11,6 +11,7 @@ import frappe.permissions
 from frappe.utils import flt, cint, getdate, get_datetime, get_time, make_filter_tuple, get_filter
 from frappe import _
 from frappe.model import optional_fields
+from frappe.model.utils.list_settings import update_list_settings
 
 class DatabaseQuery(object):
 	def __init__(self, doctype):
@@ -20,28 +21,30 @@ class DatabaseQuery(object):
 		self.or_conditions = []
 		self.fields = None
 		self.user = None
+		self.ignore_ifnull = False
 		self.flags = frappe._dict()
 
 	def execute(self, query=None, fields=None, filters=None, or_filters=None,
 		docstatus=None, group_by=None, order_by=None, limit_start=False,
 		limit_page_length=None, as_list=False, with_childnames=False, debug=False,
 		ignore_permissions=False, user=None, with_comment_count=False,
-		join='left join', distinct=False, start=None, page_length=None, limit=None):
+		join='left join', distinct=False, start=None, page_length=None, limit=None,
+		ignore_ifnull=False, save_list_settings=False, save_list_settings_fields=False,
+		update=None):
 		if not ignore_permissions and not frappe.has_permission(self.doctype, "read", user=user):
 			raise frappe.PermissionError, self.doctype
 
 		# fitlers and fields swappable
 		# its hard to remember what comes first
-		if isinstance(fields, dict):
-			# if fields is given as dict, its probably filters
-			self.filters = fields
-			fields = None
+		if (isinstance(fields, dict)
+			or (isinstance(fields, list) and fields and isinstance(fields[0], list))):
+			# if fields is given as dict/list of list, its probably filters
+			filters, fields = fields, filters
 
-		if self.fields and isinstance(filters, list) \
+		elif fields and isinstance(filters, list) \
 			and len(filters) > 1 and isinstance(filters[0], basestring):
 			# if `filters` is a list of strings, its probably fields
-			self.fields = filters
-			filters = None
+			filters, fields = fields, filters
 
 		if fields:
 			self.fields = fields
@@ -64,8 +67,11 @@ class DatabaseQuery(object):
 		self.join = join
 		self.distinct = distinct
 		self.as_list = as_list
+		self.ignore_ifnull = ignore_ifnull
 		self.flags.ignore_permissions = ignore_permissions
 		self.user = user or frappe.session.user
+		self.update = update
+		#self.debug = True
 
 		if query:
 			result = self.run_custom_query(query)
@@ -74,6 +80,10 @@ class DatabaseQuery(object):
 
 		if with_comment_count and not as_list and self.doctype:
 			self.add_comment_count(result)
+
+		if save_list_settings:
+			self.save_list_settings_fields = save_list_settings_fields
+			self.update_list_settings()
 
 		return result
 
@@ -90,7 +100,7 @@ class DatabaseQuery(object):
 		query = """select %(fields)s from %(tables)s %(conditions)s
 			%(group_by)s %(order_by)s %(limit)s""" % args
 
-		return frappe.db.sql(query, as_dict=not self.as_list, debug=self.debug)
+		return frappe.db.sql(query, as_dict=not self.as_list, debug=self.debug, update=self.update)
 
 	def prepare_args(self):
 		self.parse_args()
@@ -256,21 +266,26 @@ class DatabaseQuery(object):
 		if not tname in self.tables:
 			self.append_table(tname)
 
+		column_name = '{tname}.{fname}'.format(tname=tname,
+			fname=f.fieldname)
+
+		can_be_null = True
+
 		# prepare in condition
 		if f.operator in ('in', 'not in'):
 			values = f.value
 			if not isinstance(values, (list, tuple)):
 				values = values.split(",")
 
-			values = (frappe.db.escape(v.strip(), percent=False) for v in values)
-			values = '("{0}")'.format('", "'.join(values))
-
-			condition = 'ifnull({tname}.{fname}, "") {operator} {value}'.format(
-				tname=tname, fname=f.fieldname, operator=f.operator, value=values)
-
+			fallback = "''"
+			value = (frappe.db.escape((v or '').strip(), percent=False) for v in values)
+			value = '("{0}")'.format('", "'.join(value))
 		else:
 			df = frappe.get_meta(f.doctype).get("fields", {"fieldname": f.fieldname})
 			df = df[0] if df else None
+
+			if df and df.fieldtype in ("Check", "Float", "Int", "Currency", "Percent"):
+				can_be_null = False
 
 			if df and df.fieldtype=="Date":
 				value = getdate(f.value).strftime("%Y-%m-%d")
@@ -306,13 +321,18 @@ class DatabaseQuery(object):
 				value = '"{0}"'.format(frappe.db.escape(value, percent=False))
 
 			if f.fieldname in ("creation", "modified"):
-				condition = '''ifnull(date_format({tname}.{fname},'%Y-%m-%d'), {fallback}) {operator} {value}'''.format(
-					tname=tname, fname=f.fieldname, fallback=fallback, operator=f.operator,
-					value=value)
-			else:
-				condition = 'ifnull({tname}.{fname}, {fallback}) {operator} {value}'.format(
-					tname=tname, fname=f.fieldname, fallback=fallback, operator=f.operator,
-					value=value)
+				column_name = "date_format({tname}.{fname}, '%Y-%m-%d')".format(tname=tname,
+					fname=f.fieldname)
+
+		if (self.ignore_ifnull or not can_be_null
+			or (f.value and f.operator in ('=', 'like')) or 'ifnull(' in column_name.lower()):
+			condition = '{column_name} {operator} {value}'.format(
+				column_name=column_name, operator=f.operator,
+				value=value)
+		else:
+			condition = 'ifnull({column_name}, {fallback}) {operator} {value}'.format(
+				column_name=column_name, fallback=fallback, operator=f.operator,
+				value=value)
 
 		return condition
 
@@ -346,7 +366,7 @@ class DatabaseQuery(object):
 
 			if role_permissions.get("if_owner", {}).get("read"):
 				self.match_conditions.append("`tab{0}`.owner = '{1}'".format(self.doctype,
-					frappe.db.escape(frappe.session.user, percent=False)))
+					frappe.db.escape(self.user, percent=False)))
 
 		if as_condition:
 			conditions = ""
@@ -471,3 +491,17 @@ class DatabaseQuery(object):
 			r._comment_count = 0
 			if "_comments" in r:
 				r._comment_count = len(json.loads(r._comments or "[]"))
+
+	def update_list_settings(self):
+		# update list settings if new search
+		if not cint(self.limit_start) or cint(self.limit_page_length) != 20:
+			list_settings = {
+				'filters': self.filters,
+				'limit': self.limit_page_length,
+				'order_by': self.order_by
+			}
+			if self.save_list_settings_fields:
+				list_settings['fields'] = self.fields
+
+			update_list_settings(self.doctype, list_settings)
+

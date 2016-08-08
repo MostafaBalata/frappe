@@ -7,9 +7,8 @@ import frappe
 from frappe import _
 from frappe.website.website_generator import WebsiteGenerator
 from frappe.website.render import clear_cache
-from frappe.utils import today, cint, global_date_format, get_fullname, strip_html_tags
+from frappe.utils import today, cint, global_date_format, get_fullname, strip_html_tags, markdown
 from frappe.website.utils import find_first_image, get_comment_list
-from markdown2 import markdown
 
 class BlogPost(WebsiteGenerator):
 	save_versions = True
@@ -17,9 +16,13 @@ class BlogPost(WebsiteGenerator):
 		condition_field = "published",
 		template = "templates/generators/blog_post.html",
 		order_by = "published_on desc",
-		parent_website_route_field = "blog_category",
 		page_title_field = "title"
 	)
+
+	def make_route(self):
+		if not self.route:
+			return frappe.db.get_value('Blog Category', self.blog_category,
+				'route') + '/' + self.scrub(self.title)
 
 	def get_feed(self):
 		return self.title
@@ -76,13 +79,15 @@ class BlogPost(WebsiteGenerator):
 		if not context.comment_list:
 			context.comment_text = _('No comments yet')
 		else:
-			context.comment_text = _('{0} comments').format(len(context.comment_list))
+			if(len(context.comment_list)) == 1:
+				context.comment_text = _('1 comment')
+			else:
+				context.comment_text = _('{0} comments').format(len(context.comment_list))
 
-		context.children = get_children()
-
-		category = frappe.db.get_value("Blog Category", context.doc.blog_category, ["title", "page_name"], as_dict=1)
-		context.parents = [{"title": category.title, "name": "blog/{0}".format(category.page_name)}]
-		context.blog_simi_posts = get_blog_posts()
+		context.category = frappe.db.get_value("Blog Category",
+			context.doc.blog_category, ["title", "route"], as_dict=1)
+		context.parents = [{"title": context.category.title, "name":
+			context.category.route}]
 
 def get_list_context(context=None):
 	list_context = frappe._dict(
@@ -109,7 +114,7 @@ def get_list_context(context=None):
 	return list_context
 
 def get_children():
-	return frappe.db.sql("""select concat("blog/", page_name) as name,
+	return frappe.db.sql("""select route as name,
 		title from `tabBlog Category`
 		where published = 1
 		and exists (select name from `tabBlog Post`
@@ -117,14 +122,14 @@ def get_children():
 		order by title asc""", as_dict=1)
 
 def clear_blog_cache():
-	for blog in frappe.db.sql_list("""select page_name from
+	for blog in frappe.db.sql_list("""select route from
 		`tabBlog Post` where ifnull(published,0)=1"""):
 		clear_cache(blog)
 
 	clear_cache("writers")
 
-def get_blog_category(page_name):
-	return frappe.db.get_value("Blog Category", {"page_name": page_name }) or page_name
+def get_blog_category(route):
+	return frappe.db.get_value("Blog Category", {"route": route }) or route
 
 def get_blog_list(doctype, txt=None, filters=None, limit_start=0, limit_page_length=20):
 	conditions = []
@@ -177,6 +182,8 @@ def get_blog_list(doctype, txt=None, filters=None, limit_start=0, limit_page_len
 			post.comment_text = _('{0} comments').format(str(post.comments))
 
 		post.avatar = post.avatar or ""
+		post.category = frappe.db.get_value('Blog Category', post.blog_category,
+			['route', 'title'], as_dict=True)
 
 		if (not "http:" in post.avatar or "https:" in post.avatar) and not post.avatar.startswith("/"):
 			post.avatar = "/" + post.avatar
