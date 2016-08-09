@@ -19,6 +19,7 @@ page_js = {
 	"setup-wizard": "public/js/frappe/setup_wizard.js"
 }
 
+app_css_right = ["assets/erpsystem/css/bootstrap/bootstrap-rtl.min.css","assets/erpsystem/css/erpnext-rtl.css"]
 # website
 app_include_js = [
 	"assets/js/libs.min.js",

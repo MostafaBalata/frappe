@@ -29,7 +29,7 @@ def get_context(context):
 
 	# remove script tags from boot
 	boot_json = re.sub("\<script\>[^<]*\</script\>", "", boot_json)
-
+	print hooks
 	return {
 		"build_version": get_build_version(),
 		"include_js": hooks["app_include_js"],
