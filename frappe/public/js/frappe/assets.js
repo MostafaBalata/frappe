@@ -85,7 +85,8 @@ frappe.assets = {
 				frappe.assets.executed_.push(path)
 			}
 		}
-		callback();
+		if (callback != null)
+			callback();
 	},
 
 	// check if the asset exists in

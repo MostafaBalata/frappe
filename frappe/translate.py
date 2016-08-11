@@ -6,7 +6,6 @@ from __future__ import unicode_literals
 """
 	frappe.translate
 	~~~~~~~~~~~~~~~~
-
 	Translation tools for frappe
 """
 
@@ -55,7 +54,6 @@ def get_user_lang(user=None):
 		user_lang = frappe.db.get_value("User", user, "language")
 		if user_lang and user_lang!="Loading...":
 			lang = get_lang_code(user_lang)
-
 		else:
 			default_lang = frappe.db.get_default("lang")
 			lang = get_lang_code(default_lang)
@@ -72,7 +70,7 @@ def get_lang_code(lang):
 
 def set_default_language(language):
 	"""Set Global default language"""
-	lang = get_lang_dict()[language]
+	lang = get_lang_dict().get(language, language)
 	frappe.db.set_default("lang", lang)
 	frappe.local.lang = lang
 
@@ -94,7 +92,6 @@ def get_lang_info():
 
 def get_dict(fortype, name=None):
 	"""Returns translation dict for a type of object.
-
 	 :param fortype: must be one of `doctype`, `page`, `report`, `include`, `jsfile`, `boot`
 	 :param name: name of the document for which assets are to be returned.
 	 """
@@ -143,7 +140,6 @@ def get_dict_from_hooks(fortype, name):
 def add_lang_dict(code):
 	"""Extracts messages and returns Javascript code snippet to be appened at the end
 	of the given script
-
 	:param code: Javascript code snippet to which translations needs to be appended."""
 	messages = extract_messages_from_code(code)
 	messages = [message for pos, message in messages]
@@ -152,7 +148,6 @@ def add_lang_dict(code):
 
 def make_dict_from_messages(messages, full_dict=None):
 	"""Returns translated messages as a dict in Language specified in `frappe.local.lang`
-
 	:param messages: List of untranslated messages
 	"""
 	out = {}
@@ -166,7 +161,6 @@ def make_dict_from_messages(messages, full_dict=None):
 
 def get_lang_js(fortype, name):
 	"""Returns code snippet to be appended at the end of a JS script.
-
 	:param fortype: Type of object, e.g. `DocType`
 	:param name: Document name
 	"""
@@ -231,7 +225,6 @@ def get_translation_dict_from_file(path, lang, app):
 
 	return cleaned
 
-
 def get_user_translations(lang):
 	out = frappe.cache().hget('lang_user_translations', lang)
 	if out is None:
@@ -245,7 +238,6 @@ def get_user_translations(lang):
 
 # def get_user_translation_key():
 # 	return 'lang_user_translations:{0}'.format(frappe.local.site)
-
 
 
 def clear_cache():
@@ -471,7 +463,6 @@ def get_all_messages_from_js_files(app_name=None):
 
 def get_messages_from_file(path):
 	"""Returns a list of transatable strings from a code file
-
 	:param path: path of the code file
 	"""
 	apps_path = get_bench_dir()
@@ -485,7 +476,6 @@ def get_messages_from_file(path):
 
 def extract_messages_from_code(code, is_py=False):
 	"""Extracts translatable srings from a code file
-
 	:param code: code from which translatable files are to be extracted
 	:param is_py: include messages in triple quotes e.g. `_('''message''')`"""
 	try:
@@ -523,7 +513,6 @@ def pos_to_line_no(messages, code):
 
 def read_csv_file(path):
 	"""Read CSV file and return as list of list
-
 	:param path: File path"""
 	from csv import reader
 	with codecs.open(path, 'r', 'utf-8') as msgfile:
@@ -537,7 +526,6 @@ def read_csv_file(path):
 
 def write_csv_file(path, app_messages, lang_dict):
 	"""Write translation CSV file.
-
 	:param path: File path, usually `[app]/translations`.
 	:param app_messages: Translatable strings for this app.
 	:param lang_dict: Full translated dict.
@@ -554,7 +542,6 @@ def write_csv_file(path, app_messages, lang_dict):
 
 def get_untranslated(lang, untranslated_file, get_all=False):
 	"""Returns all untranslated strings for a language and writes in a file
-
 	:param lang: Language code.
 	:param untranslated_file: Output file path.
 	:param get_all: Return all strings, translated or not."""
@@ -597,7 +584,6 @@ def get_untranslated(lang, untranslated_file, get_all=False):
 
 def update_translations(lang, untranslated_file, translated_file):
 	"""Update translations from a source and target file for a given language.
-
 	:param lang: Language code (e.g. `en`).
 	:param untranslated_file: File path with the messages in English.
 	:param translated_file: File path with messages in language to be updated."""
@@ -642,10 +628,9 @@ def rebuild_all_translation_files():
 
 def write_translations_file(app, lang, full_dict=None, app_messages=None):
 	"""Write a translation file for a given language.
-
 	:param app: `app` for which translations are to be written.
 	:param lang: Language code.
-	:param full_dict: Full translated langauge dict (optional).
+	:param full_dict: Full translated language dict (optional).
 	:param app_messages: Source strings (optional).
 	"""
 	if not app_messages:

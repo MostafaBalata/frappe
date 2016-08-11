@@ -337,7 +337,7 @@ function load_frappe_slides() {
 
 		fields: [
 			{ fieldname: "language", label: __("Select Your Language"), reqd:1,
-				fieldtype: "Select", "default": "العربية" },
+				fieldtype: "Select", "default": "english" },
 		],
 
 		onload: function(slide) {
@@ -358,8 +358,7 @@ function load_frappe_slides() {
 					frappe.wiz.welcome.setup_fields(slide);
 
 					var language_field = slide.get_field("language");
-					frappe.wiz.welcome.data.default_language = "العربية"
-					language_field.set_input(frappe.wiz.welcome.data.default_language);
+					language_field.set_input(frappe.wiz.welcome.data.default_language || "english");
 
 					if (!frappe.wiz._from_load_messages) {
 						language_field.$input.trigger("change");
@@ -367,7 +366,7 @@ function load_frappe_slides() {
 
 					delete frappe.wiz._from_load_messages;
 
-					moment.locale("ar");
+					moment.locale("en");
 				}
 			});
 		},
@@ -381,7 +380,7 @@ function load_frappe_slides() {
 
 		bind_events: function(slide) {
 			slide.get_input("language").unbind("change").on("change", function() {
-				var lang = $(this).val() || "العربية";
+				var lang = $(this).val() || "english";
 				frappe._messages = {};
 				frappe.call({
 					method: "frappe.desk.page.setup_wizard.setup_wizard.load_messages",
@@ -416,9 +415,7 @@ function load_frappe_slides() {
 		onload: function(slide) {
 			var _setup = function() {
 				frappe.wiz.region.setup_fields(slide);
-				frappe.wiz.region.bind_events(slide);		
-				$('[data-fieldname="country"]').val('Saudi Arabia').change();
-				
+				frappe.wiz.region.bind_events(slide);
 			};
 
 			if(frappe.wiz.regional_data) {
@@ -427,8 +424,7 @@ function load_frappe_slides() {
 				frappe.call({
 					method:"frappe.geo.country_info.get_country_timezone_info",
 					callback: function(data) {
-						frappe.wiz.region.data = data.message;
-						
+						frappe.wiz.regional_data = data.message;
 						_setup();
 					}
 				});
@@ -549,9 +545,6 @@ function load_frappe_slides() {
 		},
 		css_class: "single-column"
 	};
-
-	
-
 };
 
 frappe.wiz.on("before_load", function() {
@@ -561,3 +554,4 @@ frappe.wiz.on("before_load", function() {
 	frappe.wiz.add_slide(frappe.wiz.welcome);
 	frappe.wiz.add_slide(frappe.wiz.region);
 	frappe.wiz.add_slide(frappe.wiz.user);
+});

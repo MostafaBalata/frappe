@@ -32,11 +32,13 @@ app_include_js = [
 	"assets/frappe/js/frappe/toolbar.js"
 ]
 app_include_css = [
+	"assets/css/erpnext.css",
+
 	"assets/css/desk.min.css",
 	"assets/css/list.min.css",
 	"assets/css/form.min.css",
 	"assets/css/report.min.css",
-	"assets/css/module.min.css"
+	"assets/css/module.min.css",
 ]
 
 web_include_js = [
