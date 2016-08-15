@@ -373,32 +373,27 @@ class Document(BaseDocument):
 				if current_transaction is None:
 					frappe.throw("There's no workflow state, Refresh the page")
 
-				# Check is allowed
-				if current_transaction[5] == "Department Manager":
-					if not self.isDepartmentManager():
+				condition = str(current_transaction[2]).split(":")
+				if len(condition) == 1:
+					check_func = condition[0]
+					if not self.run_method(check_func):
 						frappe.throw(_("You are not permitted."))
-				if current_transaction[5] == "Employee":
-					if not self.isAllowed():
-						frappe.throw(_("You are not Allowed."))
 
 				if current_transaction[5] not in frappe.get_roles(frappe.session.user):
 					frappe.throw(_("You are not Allowed ."))
 
 #				print current_transaction[2]
 				if current_transaction[2] is not None and self._current_action != "update":
-					condition = str(current_transaction[2]).split(":")
-					print condition
-#					frappe.msgprint("update")
-					try:
-						fcall = eval("self."+condition[0])() # Function Name
-#						frappe.msgprint(fcall)
-						if fcall:
-							self.run_method("before_submit")
-							self.db_set("workflow_state", condition[1])
-							self.db_set("docstatus", "1") # submitted
-							self.run_method("on_submit")
-					except AttributeError as e:
-						frappe.throw("Check workflow transaction condition :"+ str(e))
+					if len(condition) == 2:
+						try:
+							fcall = self.run_method(condition[0])
+							if fcall:
+								self.run_method("before_submit")
+								self.db_set("workflow_state", condition[1])
+								self.db_set("docstatus", "1") # submitted
+								self.run_method("on_submit")
+						except AttributeError as e:
+							frappe.throw("Check workflow transaction condition :"+ str(e))
 			else:
 				pass
 
@@ -417,8 +412,6 @@ class Document(BaseDocument):
 			#if self.workflow_state =  or
 			owner_user = frappe.db.get_value("User", owner_employee.user_id, "email")
 
-			print owner_user
-			print get_link_to_form(self.doctype , self.name)
 
 			frappe.sendmail(
 				recipients=(owner_user),
@@ -430,49 +423,8 @@ class Document(BaseDocument):
 					"link": get_link_to_form(self.doctype , self.name)
 			}))
 
-#			frappe.msgprint("end")
-	def isNotModified(self):
-		last_elem = self.get('workflow_history')[len(self.get('workflow_history'))-1]
-#		if last_elem.new_state == "Pending Account Manager" and last_elem.action == "update":
-		if last_elem.action == "update":
-			return False
-		else:
-			return True
 
-	def isAvailableBalance(self):
-#		frappe.throw(self.leave_balance > self.total_leave_days)
-		if self.leave_balance > self.total_leave_days:
-			self.status = "Approved"
-			return True
-		else:
-			self.leave_type = "Leave Without Salary"
 
-		return False
-
-	def isDepartmentManager(self):
-		user = frappe.session.user
-		my_employee = frappe.get_doc('Employee',{'user_id' : user} )
-		owner_employee = frappe.get_doc('Employee',{'name' : self.employee } )
-		owner_department = owner_employee.department
-
-		# Check if the applied user is manager.
-		if u'Department Manager' in frappe.get_roles(owner_employee.user_id):
-			owner_department_details = frappe.get_doc('Department',{'name' : owner_department} )
-			parent_department = owner_department_details.parent_department
-			return parent_department == my_employee.department and u'Department Manager' in frappe.get_roles(user)
-
-		return u'Department Manager' in frappe.get_roles(user) and owner_employee.department == my_employee.department
-
-	def isAllowed(self , allowed_role = u'HR User'):
-		user = frappe.session.user
-
-		if self.owner == user:
-			return True
-
-		if allowed_role in frappe.get_roles(user):
-			return False
-
-		return False
 
 	def update_children(self):
 		'''update child tables'''
