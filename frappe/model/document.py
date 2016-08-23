@@ -258,6 +258,7 @@ class Document(BaseDocument):
 
 
 	def workflow_manager(self):
+		return
 		from frappe.model.workflow import get_workflow_name
 		if not getattr(self, "__islocal", None) and frappe.db.exists(self.doctype, self.name):
 			self.previous_doc = frappe.db.get_value(self.doctype, self.name, "*", as_dict=True)
