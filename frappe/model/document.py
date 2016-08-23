@@ -396,7 +396,7 @@ class Document(BaseDocument):
 				subject = "New Message from " + get_fullname(frappe.session.user),
 				message = frappe.get_template("templates/emails/new_message.html").render({
 					"from": get_fullname(frappe.session.user),
-					"message": "Hello This is me",
+					"message": "This is document has been modified",
 					"link": get_link_to_form(self.doctype , self.name)
 			}))
 
